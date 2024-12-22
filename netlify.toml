@@ -1,7 +1,9 @@
 [build]
   publish = "build/web"
+  command = ""
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = true
