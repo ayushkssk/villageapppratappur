@@ -35,24 +35,37 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
         _loadingText = 'Loading images...';
       });
 
-      // List all files in the 'gallery_images' folder
-      final ListResult result = await storage.ref('gallery_images').listAll();
-      
-      // Get download URLs for all images
-      final urls = await Future.wait(
-        result.items.map((ref) => ref.getDownloadURL()),
-      );
+      try {
+        // Try to list images
+        final ListResult result = await storage.ref('gallery_images').listAll();
+        
+        if (result.items.isEmpty) {
+          setState(() {
+            _imageUrls = [];
+          });
+          return;
+        }
 
-      setState(() {
-        _imageUrls = urls.cast<String>();
-      });
+        // Get download URLs for all images
+        final urls = await Future.wait(
+          result.items.map((ref) => ref.getDownloadURL()),
+        );
+
+        setState(() {
+          _imageUrls = urls.cast<String>();
+        });
+      } catch (e) {
+        // If folder doesn't exist, just set empty list
+        if (e.toString().contains('object-not-found')) {
+          setState(() {
+            _imageUrls = [];
+          });
+        } else {
+          throw e; // Re-throw other errors
+        }
+      }
     } catch (e) {
-      // Handle case when folder doesn't exist
-      if (e.toString().contains('object-not-found')) {
-        // Create the folder by uploading a dummy file
-        await storage.ref('gallery_images/.placeholder').putString('');
-        _imageUrls = [];
-      } else {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading images: $e'),
@@ -60,6 +73,9 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
           ),
         );
       }
+      setState(() {
+        _imageUrls = [];
+      });
     } finally {
       setState(() {
         _isLoading = false;
@@ -88,13 +104,17 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
       final tempDir = await getTemporaryDirectory();
       final targetPath = '${tempDir.path}/compressed.jpg';
       
-      await FlutterImageCompress.compressAndGetFile(
+      final compressedFile = await FlutterImageCompress.compressAndGetFile(
         pickedFile.path,
         targetPath,
         quality: 85,
         minWidth: 1024,
         minHeight: 1024,
       );
+
+      if (compressedFile == null) {
+        throw Exception('Failed to compress image');
+      }
 
       setState(() {
         _loadingText = 'Uploading image...';
@@ -105,7 +125,7 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
       final ref = storage.ref('gallery_images/$fileName');
 
       final uploadTask = ref.putFile(
-        File(targetPath),
+        File(compressedFile.path),
         SettableMetadata(
           contentType: 'image/jpeg',
           cacheControl: 'public, max-age=31536000',
@@ -127,19 +147,23 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
         _imageUrls.insert(0, url);
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Image uploaded successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image uploaded successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error uploading image: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error uploading image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       setState(() {
         _isLoading = false;
