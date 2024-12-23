@@ -74,7 +74,14 @@ migrate_working_dir/
 **/ios/ServiceDefinitions.json
 **/ios/Runner/GeneratedPluginRegistrant.*
 
-# Web related
+# Firebase related
+google-services.json
+GoogleService-Info.plist
+firebase_app_id_file.json
+firebase_options.dart
+
+# Google Sign In related
+google_sign_in_web.json
 
 # Symbolication related
 app.*.symbols
@@ -88,3 +95,8 @@ coverage/
 # Temporary files
 *.tmp
 *.temp
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
