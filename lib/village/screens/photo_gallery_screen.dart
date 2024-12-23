@@ -7,6 +7,8 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
+import '../../services/storage_service.dart';
+import '../../models/village_image.dart';
 
 class PhotoGalleryScreen extends StatefulWidget {
   const PhotoGalleryScreen({super.key});
@@ -16,11 +18,11 @@ class PhotoGalleryScreen extends StatefulWidget {
 }
 
 class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
-  final storage = FirebaseStorage.instance;
+  final StorageService _storageService = StorageService();
   final picker = ImagePicker();
   bool _isLoading = false;
   String _loadingText = '';
-  List<String> _imageUrls = [];
+  List<VillageImage> _images = [];
 
   @override
   void initState() {
@@ -35,57 +37,24 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
         _loadingText = 'Loading images...';
       });
 
-      try {
-        // Try to list images
-        final ListResult result = await storage.ref('gallery_images').listAll();
-        
-        if (result.items.isEmpty) {
-          setState(() {
-            _imageUrls = [];
-          });
-          return;
-        }
-
-        // Get download URLs for all images
-        final urls = await Future.wait(
-          result.items.map((ref) => ref.getDownloadURL()),
-        );
-
-        setState(() {
-          _imageUrls = urls.cast<String>();
-        });
-      } catch (e) {
-        // If folder doesn't exist, just set empty list
-        if (e.toString().contains('object-not-found')) {
-          setState(() {
-            _imageUrls = [];
-          });
-        } else {
-          throw e; // Re-throw other errors
-        }
-      }
+      final urls = await _storageService.getImagesFromFolder('gallery');
+      setState(() {
+        _images = urls.map((url) => VillageImage(
+          id: url.split('/').last,
+          url: url,
+          category: 'gallery',
+          uploadedAt: DateTime.now(),
+        )).toList();
+      });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading images: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      setState(() {
-        _imageUrls = [];
-      });
+      debugPrint('Error loading images: $e');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
   Future<void> _pickAndUploadImage() async {
     try {
-      // Pick image
       final pickedFile = await picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 1920,
@@ -100,7 +69,6 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
         _loadingText = 'Compressing image...';
       });
 
-      // Compress image
       final tempDir = await getTemporaryDirectory();
       final targetPath = '${tempDir.path}/compressed.jpg';
       
@@ -120,9 +88,8 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
         _loadingText = 'Uploading image...';
       });
 
-      // Upload to Firebase Storage
       final fileName = 'gallery_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final ref = storage.ref('gallery_images/$fileName');
+      final ref = FirebaseStorage.instance.ref('gallery_images/$fileName');
 
       final uploadTask = ref.putFile(
         File(compressedFile.path),
@@ -132,7 +99,6 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
         ),
       );
 
-      // Monitor upload progress
       uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
         final progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
         setState(() {
@@ -144,25 +110,30 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
       final url = await ref.getDownloadURL();
 
       setState(() {
-        _imageUrls.insert(0, url);
+        _images.insert(0, VillageImage(
+          id: url.split('/').last,
+          url: url,
+          category: 'gallery',
+          uploadedAt: DateTime.now(),
+        ));
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Image uploaded successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Image uploaded successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error uploading image: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error uploading image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
       }
     } finally {
       setState(() {
@@ -173,10 +144,8 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
 
   Future<void> _deleteImage(String imageUrl) async {
     try {
-      // Get reference from URL
       final ref = FirebaseStorage.instance.refFromURL(imageUrl);
       
-      // Show confirmation dialog
       final shouldDelete = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -200,30 +169,28 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
 
       if (shouldDelete != true) return;
 
-      // Delete from storage
       await ref.delete();
 
-      // Remove from UI
       setState(() {
-        _imageUrls.remove(imageUrl);
+        _images.removeWhere((image) => image.url == imageUrl);
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Image deleted successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Image deleted successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error deleting image: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
       }
     }
   }
@@ -236,13 +203,13 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
           scrollPhysics: const BouncingScrollPhysics(),
           builder: (BuildContext context, int i) {
             return PhotoViewGalleryPageOptions(
-              imageProvider: CachedNetworkImageProvider(_imageUrls[i]),
+              imageProvider: CachedNetworkImageProvider(_images[i].url),
               initialScale: PhotoViewComputedScale.contained,
               minScale: PhotoViewComputedScale.contained,
               maxScale: PhotoViewComputedScale.covered * 2,
             );
           },
-          itemCount: _imageUrls.length,
+          itemCount: _images.length,
           loadingBuilder: (context, event) => const Center(
             child: CircularProgressIndicator(),
           ),
@@ -272,7 +239,7 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
                 ],
               ),
             )
-          : _imageUrls.isEmpty
+          : _images.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -306,18 +273,18 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
                     crossAxisSpacing: 8,
                     mainAxisSpacing: 8,
                   ),
-                  itemCount: _imageUrls.length,
+                  itemCount: _images.length,
                   itemBuilder: (context, index) {
                     return GestureDetector(
                       onTap: () => _viewImage(index),
-                      onLongPress: () => _deleteImage(_imageUrls[index]),
+                      onLongPress: () => _deleteImage(_images[index].url),
                       child: Hero(
-                        tag: _imageUrls[index],
+                        tag: _images[index].url,
                         child: Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(8),
                             image: DecorationImage(
-                              image: CachedNetworkImageProvider(_imageUrls[index]),
+                              image: CachedNetworkImageProvider(_images[index].url),
                               fit: BoxFit.cover,
                             ),
                           ),
@@ -326,7 +293,7 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
                     );
                   },
                 ),
-      floatingActionButton: !_isLoading && _imageUrls.isNotEmpty
+      floatingActionButton: !_isLoading && _images.isNotEmpty
           ? FloatingActionButton(
               onPressed: _pickAndUploadImage,
               child: const Icon(Icons.add_photo_alternate),

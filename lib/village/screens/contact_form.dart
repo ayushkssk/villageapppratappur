@@ -26,7 +26,6 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
   File? _imageFile;
   final _picker = ImagePicker();
 
-  // Lists for random data generation
   final List<String> _firstNames = ['Rahul', 'Amit', 'Priya', 'Neha', 'Raj', 'Sanjay', 'Pooja', 'Ankit', 'Deepak', 'Ravi'];
   final List<String> _lastNames = ['Kumar', 'Singh', 'Sharma', 'Verma', 'Patel', 'Gupta', 'Yadav', 'Mishra', 'Jha', 'Pandey'];
   final List<String> _occupations = ['Farmer', 'Teacher', 'Doctor', 'Shopkeeper', 'Student', 'Business Owner', 'Driver', 'Mechanic'];
@@ -63,7 +62,6 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
         _loadingText = 'Compressing image...';
       });
 
-      // Compress image before upload
       final tempDir = await getTemporaryDirectory();
       final targetPath = '${tempDir.path}/compressed.jpg';
       
@@ -79,11 +77,9 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
         _loadingText = 'Uploading image...';
       });
 
-      // Create a unique filename
       final fileName = 'contact_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final ref = FirebaseStorage.instance.ref().child('contact_images/$fileName');
 
-      // Upload the compressed file
       final compressedFile = File(targetPath);
       final uploadTask = ref.putFile(
         compressedFile,
@@ -93,7 +89,6 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
         ),
       );
 
-      // Monitor upload progress
       uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
         final progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
         setState(() {
@@ -117,23 +112,19 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
   void _fillRandomData() {
     final random = Random();
     
-    // Generate random name
     final firstName = _firstNames[random.nextInt(_firstNames.length)];
     final lastName = _lastNames[random.nextInt(_lastNames.length)];
     _nameController.text = '$firstName $lastName';
 
-    // Generate random 10-digit phone number
     String phone = '9';
     for (int i = 0; i < 9; i++) {
       phone += random.nextInt(10).toString();
     }
     _phoneController.text = phone;
 
-    // Generate random address
     final village = _villages[random.nextInt(_villages.length)];
     _addressController.text = 'House No. ${random.nextInt(500) + 1}, Ward ${random.nextInt(15) + 1}, $village';
 
-    // Generate random occupation
     _occupationController.text = _occupations[random.nextInt(_occupations.length)];
   }
 
@@ -152,16 +143,13 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Upload image if selected
       String? imageUrl;
       if (_imageFile != null) {
         imageUrl = await _uploadImage();
       }
 
-      // Get reference to Firestore collection
       final contactsCollection = FirebaseFirestore.instance.collection('contacts');
 
-      // Create contact document
       await contactsCollection.add({
         'name': _nameController.text.trim(),
         'phone': _phoneController.text.trim(),
@@ -172,7 +160,6 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
       });
 
       if (mounted) {
-        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Contact saved successfully!'),
@@ -180,7 +167,6 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
           ),
         );
 
-        // Clear form
         _nameController.clear();
         _phoneController.clear();
         _addressController.clear();
@@ -211,7 +197,6 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
       appBar: AppBar(
         title: const Text('Add Contact'),
         actions: [
-          // View Contacts Button
           IconButton(
             icon: const Icon(Icons.list),
             tooltip: 'View Contacts',
@@ -224,7 +209,6 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
               );
             },
           ),
-          // Quick Fill Button
           IconButton(
             icon: const Icon(Icons.auto_fix_high),
             tooltip: 'Quick Fill',
@@ -239,7 +223,6 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Image Picker
               Center(
                 child: GestureDetector(
                   onTap: _pickImage,

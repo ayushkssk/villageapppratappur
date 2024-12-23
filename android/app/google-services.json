@@ -12,7 +12,20 @@
           "package_name": "com.example.villageapp"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "660862490649-XXXXX.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.villageapp",
+            "certificate_hash": "your-sha1-fingerprint"
+          }
+        },
+        {
+          "client_id": "660862490649-YYYYY.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyD5UQxpED8y1a_l37pAuqhZ1qNKasP729M"
