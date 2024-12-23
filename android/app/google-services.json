@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "660862490649",
+    "project_id": "village-645a1",
+    "storage_bucket": "village-645a1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:660862490649:android:7b6065d87c9d039be3f288",
+        "android_client_info": {
+          "package_name": "com.example.villageapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5UQxpED8y1a_l37pAuqhZ1qNKasP729M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

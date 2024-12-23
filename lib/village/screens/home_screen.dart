@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import './about_village.dart';
 import './emergency_services.dart';
 import './government_schemes.dart';
@@ -171,8 +172,21 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Village', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Village App'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              try {
+                await FirebaseAuth.instance.signOut();
+                // No need to navigate - StreamBuilder in main.dart will handle it
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error signing out: $e')),
+                );
+              }
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.notifications),
             onPressed: () {
