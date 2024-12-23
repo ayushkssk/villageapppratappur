@@ -9,8 +9,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.2
+  youtube_player_iframe: ^4.0.4
   video_player: ^2.8.1
+  chewie: ^1.7.1
+  cupertino_icons: ^1.0.2
   google_fonts: ^6.1.0
   intl: ^0.18.1
   path_provider: ^2.1.1
@@ -26,13 +28,22 @@ dependencies:
   flutter_image_compress: ^2.1.0
   firebase_app_check: ^0.2.1+8
   shared_preferences: ^2.2.2
+  firebase_auth: ^4.15.3
+  flutter_launcher_icons: ^0.13.1
+  # UI Enhancement Packages
+  animations: ^2.0.8
+  flutter_animate: ^4.3.0
+  lottie: ^2.7.0
+  flutter_card_swiper: ^6.0.0
+  smooth_page_indicator: ^1.1.0
+  shimmer: ^3.0.0
+  flutter_bounce: ^1.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
   flutter_native_splash: ^2.3.8
-  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
@@ -56,8 +67,8 @@ flutter_native_splash:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/app_icon.png"
+  image_path: "assets/images/village_logo.png"
+  adaptive_icon_background: "#FF5722" # Orange color matching the sunset theme
+  adaptive_icon_foreground: "assets/images/village_logo.png"
   min_sdk_android: 21
-  adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/images/app_icon_foreground.png"
-  minimum_ios_deployment_target: '12.0'
+  remove_alpha_ios: true

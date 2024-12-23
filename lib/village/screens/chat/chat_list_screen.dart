@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../models/message.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../models/message.dart';
 import 'chat_screen.dart';
 
 class ChatListScreen extends StatefulWidget {
@@ -108,7 +109,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
           ),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
             .collection('messages')
             .orderBy('timestamp', descending: true)

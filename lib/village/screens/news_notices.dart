@@ -1,185 +1,186 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/base_screen.dart';
+import 'home_screen.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:shimmer/shimmer.dart';
 
 class NewsNotices extends StatelessWidget {
   const NewsNotices({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('News & Notices'),
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: MediaQuery.of(context).padding.top + 20),
-              const Text(
-                'समाचार और सूचनाएं / News & Notices',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
+    return BaseScreen(
+      currentIndex: 0,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Notifications')
+              .animate()
+              .fadeIn(duration: 600.ms)
+              .slideX(begin: -0.2, end: 0),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ).animate().scale(delay: 200.ms),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.home),
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HomeScreen(),
+                  ),
+                );
+              },
+            ).animate().scale(delay: 300.ms),
+          ],
+        ),
+        body: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('notifications')
+              .orderBy('timestamp', descending: true)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                child: Text('Error: ${snapshot.error}')
+                    .animate()
+                    .fadeIn()
+                    .shake(),
+              );
+            }
+
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return _buildShimmerLoading();
+            }
+
+            final notifications = snapshot.data?.docs ?? [];
+
+            if (notifications.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.notifications_off, size: 50, color: Colors.grey[400])
+                        .animate()
+                        .scale()
+                        .then()
+                        .shake(),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No notifications yet',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                    ).animate().fadeIn(delay: 300.ms),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 24),
+              );
+            }
 
-              // Latest News Section
-              _buildNewsSection(
-                'ताज़ा समाचार / Latest News',
-                [
-                  NewsItem(
-                    title: 'ग्राम सभा की बैठक / Village Council Meeting',
-                    date: '25 दिसंबर 2023',
-                    content: 'आगामी ग्राम सभा की बैठक 25 दिसंबर को सुबह 10 बजे पंचायत भवन में होगी। सभी ग्रामवासियों से अनुरोध है कि वे समय पर उपस्थित हों।',
-                    type: NewsType.important,
-                  ),
-                  NewsItem(
-                    title: 'स्वच्छता अभियान / Cleanliness Drive',
-                    date: '20 दिसंबर 2023',
-                    content: 'गाँव में स्वच्छता अभियान का आयोजन किया जा रहा है। सभी ग्रामवासियों से सहयोग की अपेक्षा है।',
-                    type: NewsType.normal,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
+            return ListView.builder(
+              itemCount: notifications.length,
+              itemBuilder: (context, index) {
+                final notification = notifications[index].data() as Map<String, dynamic>;
+                final timestamp = (notification['timestamp'] as Timestamp).toDate();
 
-              // Important Notices
-              _buildNewsSection(
-                'महत्वपूर्ण सूचनाएं / Important Notices',
-                [
-                  NewsItem(
-                    title: 'राशन कार्ड अपडेट / Ration Card Update',
-                    date: '18 दिसंबर 2023',
-                    content: 'सभी राशन कार्ड धारकों को सूचित किया जाता है कि वे अपने राशन कार्ड का वार्षिक सत्यापन करवाएं।',
-                    type: NewsType.important,
-                  ),
-                  NewsItem(
-                    title: 'टीकाकरण कैंप / Vaccination Camp',
-                    date: '15 दिसंबर 2023',
-                    content: 'प्राथमिक स्वास्थ्य केंद्र में बच्चों के लिए टीकाकरण कैंप का आयोजन किया जाएगा।',
-                    type: NewsType.normal,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Development Updates
-              _buildNewsSection(
-                'विकास कार्य अपडेट / Development Updates',
-                [
-                  NewsItem(
-                    title: 'सड़क निर्माण / Road Construction',
-                    date: '10 दिसंबर 2023',
-                    content: 'मुख्य मार्ग का निर्माण कार्य प्रगति पर है। कृपया वैकल्पिक मार्ग का प्रयोग करें।',
-                    type: NewsType.normal,
-                  ),
-                  NewsItem(
-                    title: 'सौर ऊर्जा परियोजना / Solar Energy Project',
-                    date: '5 दिसंबर 2023',
-                    content: 'गाँव में सौर ऊर्जा परियोजना की शुरुआत की जा रही है। इच्छुक परिवार संपर्क करें।',
-                    type: NewsType.important,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Implement news submission
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Coming Soon: Submit your news/notice'),
-            ),
-          );
-        },
-        backgroundColor: Colors.green,
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  Widget _buildNewsSection(String title, List<NewsItem> items) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.green,
-          ),
-        ),
-        const SizedBox(height: 12),
-        ...items.map((item) => _buildNewsCard(item)),
-      ],
-    );
-  }
-
-  Widget _buildNewsCard(NewsItem item) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                if (item.type == NewsType.important)
-                  const Icon(Icons.star, color: Colors.orange, size: 20),
-                Expanded(
-                  child: Text(
-                    item.title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      child: const Icon(Icons.notifications, color: Colors.white),
                     ),
+                    title: Text(notification['title'] ?? 'No Title'),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(notification['message'] ?? 'No Message'),
+                        const SizedBox(height: 4),
+                        Text(
+                          _formatTimestamp(timestamp),
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    isThreeLine: true,
+                  ),
+                )
+                    .animate()
+                    .fadeIn(delay: Duration(milliseconds: 100 * index))
+                    .slideX(begin: 0.2, end: 0);
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShimmerLoading() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: ListView.builder(
+        itemCount: 5,
+        itemBuilder: (_, __) => Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        height: 12,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        height: 10,
+                        color: Colors.white,
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              item.date,
-              style: const TextStyle(
-                color: Colors.grey,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              item.content,
-              style: const TextStyle(fontSize: 16),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
-}
 
-enum NewsType {
-  normal,
-  important,
-}
+  String _formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
 
-class NewsItem {
-  final String title;
-  final String date;
-  final String content;
-  final NewsType type;
-
-  NewsItem({
-    required this.title,
-    required this.date,
-    required this.content,
-    this.type = NewsType.normal,
-  });
+    if (difference.inDays > 0) {
+      return '${difference.inDays}d ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m ago';
+    } else {
+      return 'Just now';
+    }
+  }
 }
