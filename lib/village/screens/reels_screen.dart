@@ -266,48 +266,27 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
     final index = _reels.indexOf(reel);
     return Stack(
       children: [
-        GestureDetector(
-          onTap: _togglePlayPause,
-          child: Container(
-            color: Colors.black,
+        // Full screen video container
+        Container(
+          width: MediaQuery.of(context).size.width,
+          height: MediaQuery.of(context).size.height,
+          color: Colors.black,
+          child: GestureDetector(
+            onTap: _togglePlayPause,
             child: _videoControllers[index].value.isInitialized
-                ? AspectRatio(
-                    aspectRatio: _videoControllers[index].value.aspectRatio,
-                    child: VideoPlayer(_videoControllers[index]),
+                ? FittedBox(
+                    fit: BoxFit.cover,
+                    child: SizedBox(
+                      width: _videoControllers[index].value.size.width,
+                      height: _videoControllers[index].value.size.height,
+                      child: VideoPlayer(_videoControllers[index]),
+                    ),
                   )
                 : const Center(
                     child: CircularProgressIndicator(
                       color: Colors.white,
                     ),
                   ),
-          ),
-        ),
-        // Static Guidance Text at top
-        Positioned(
-          top: 60, // Below app bar
-          left: 0,
-          right: 0,
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.black45,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Tap: Mute • Double Tap: Play/Pause',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ),
         // Play/Pause Indicator with better visibility control
@@ -336,117 +315,94 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
               ),
             ),
           ),
-        // Video Description at bottom with gradient
-        Positioned(
-          bottom: 4, // Moved up to make space for progress bar
-          left: 0,
-          right: 0,
-          child: Container(
-            padding: const EdgeInsets.only(
-              left: 16,
-              right: 16,
-              bottom: 40,
-              top: 40,
-            ),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-                colors: [
-                  Colors.black.withOpacity(0.8),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-            child: Text(
-              reel['description'],
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                shadows: [
-                  Shadow(
-                    blurRadius: 8.0,
-                    color: Colors.black,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        // Enhanced Progress Bar
+        // Video Description and Progress at bottom
         Positioned(
           bottom: 0,
           left: 0,
           right: 0,
-          child: ValueListenableBuilder<double>(
-            valueListenable: _progressValues[index] ?? ValueNotifier<double>(0.0),
-            builder: (context, progress, child) {
-              return Stack(
-                children: [
-                  // Background track
-                  Container(
-                    height: 4,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.grey.withOpacity(0.3),
-                          Colors.grey.withOpacity(0.3),
-                        ],
-                      ),
-                    ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Description with gradient background
+              Container(
+                padding: const EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                  top: 32,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.8),
+                      Colors.transparent,
+                    ],
                   ),
-                  // Progress indicator
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 50),
-                    height: 4,
-                    width: MediaQuery.of(context).size.width * progress,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          Colors.purple,
-                          Colors.pink,
-                        ],
+                ),
+                child: Text(
+                  reel['description'],
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    shadows: [
+                      Shadow(
+                        blurRadius: 8.0,
+                        color: Colors.black,
+                        offset: Offset(0, 2),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.pink.withOpacity(0.5),
-                          blurRadius: 6.0,
-                          spreadRadius: 0.0,
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
-                  // Time indicator
-                  if (_videoControllers[index].value.isInitialized)
-                    Positioned(
-                      right: 8,
-                      bottom: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
+                ),
+              ),
+              // Progress bar
+              ValueListenableBuilder<double>(
+                valueListenable: _progressValues[index] ?? ValueNotifier<double>(0.0),
+                builder: (context, progress, child) {
+                  return Stack(
+                    children: [
+                      // Background track
+                      Container(
+                        height: 4,
+                        width: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          _formatDuration(_videoControllers[index].value.duration - 
-                                          _videoControllers[index].value.position),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.grey.withOpacity(0.3),
+                              Colors.grey.withOpacity(0.3),
+                            ],
                           ),
                         ),
                       ),
-                    ),
-                ],
-              );
-            },
+                      // Progress indicator
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 50),
+                        height: 4,
+                        width: MediaQuery.of(context).size.width * progress,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Colors.purple,
+                              Colors.pink,
+                            ],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.pink.withOpacity(0.5),
+                              blurRadius: 6.0,
+                              spreadRadius: 0.0,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
           ),
         ),
       ],
