@@ -24,7 +24,7 @@ import 'chat_screen.dart';
 import 'events_screen.dart';
 import 'reels_screen.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
-import '../widgets/common_navbar.dart';
+import './main_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool showBottomBar;
@@ -47,7 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _refreshTimer;
   Timer? _newsScrollTimer;
   Timer? _imageSlideTimer;
-  int _selectedIndex = 0;
+  int _selectedIndex = 0;  // Add this line
   final PageController _newsController = PageController(
     viewportFraction: 1.0,
     keepPage: true,
@@ -72,8 +72,23 @@ class _HomeScreenState extends State<HomeScreen> {
     'assets/images/middle_school/middleschool14.png',
   ];
   int _notificationCount = 0;
+  final List<Widget> _screens = [
+    const HomeScreen(showBottomBar: false),
+    const ChatScreen(),
+    const EventsScreen(),
+    const ReelsScreen(),
+  ];
 
   void _onItemTapped(int index) {
+    if (_selectedIndex != index) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => _screens[index]),
+      );
+    }
+  }
+
+  void _onItemTappedOld(int index) {
     if (!widget.showBottomBar) return;
     
     setState(() {
@@ -238,20 +253,40 @@ class _HomeScreenState extends State<HomeScreen> {
     final appBar = AppBar(
       title: const Text(
         'Village App',
-        style: TextStyle(
-          color: Colors.black,
-          fontWeight: FontWeight.bold,
-        ),
+        style: TextStyle(color: Colors.white),
       ),
-      backgroundColor: Colors.white,
-      elevation: 0,
-      centerTitle: true,
+      backgroundColor: Theme.of(context).primaryColor,
       actions: [
+        // Admin Button
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdminPanel(),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.admin_panel_settings,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
         // Notification Bell
         Stack(
           children: [
             IconButton(
-              icon: const Icon(Icons.notifications, color: Colors.black),
+              icon: const Icon(Icons.notifications, color: Colors.white),
               onPressed: () {
                 showDialog(
                   context: context,
@@ -327,23 +362,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
           ],
         ),
-        // Admin Panel
-        IconButton(
-          icon: const Icon(Icons.admin_panel_settings),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AdminPanel(),
-              ),
-            );
-          },
-        ),
         // Logout Button
         IconButton(
           icon: const Icon(
             Icons.logout,
-            color: Colors.red,
+            color: Colors.white,
           ),
           tooltip: 'Logout',
           onPressed: () async {
@@ -613,7 +636,50 @@ class _HomeScreenState extends State<HomeScreen> {
               onRefresh: _loadData,
               child: _buildBody(),
             ),
-      bottomNavigationBar: const CommonNavBar(currentIndex: 0),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+            child: BottomNavigationBar(
+              elevation: 0,
+              backgroundColor: Colors.transparent,
+              type: BottomNavigationBarType.fixed,
+              items: const <BottomNavigationBarItem>[
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home),
+                  label: 'Home',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.chat),
+                  label: 'Chat',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.event),
+                  label: 'Events',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.video_collection),
+                  label: 'Reels',
+                ),
+              ],
+              currentIndex: _selectedIndex,
+              selectedItemColor: Theme.of(context).primaryColor,
+              unselectedItemColor: Colors.grey,
+              onTap: _onItemTapped,
+            ),
+          ),
+        ),
+      ),
     );
   }
 

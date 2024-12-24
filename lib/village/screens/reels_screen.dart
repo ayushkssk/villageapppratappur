@@ -2,8 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:like_button/like_button.dart';
-import '../widgets/common_navbar.dart';
+import 'home_screen.dart';
+import 'chat_screen.dart';
+import 'events_screen.dart';
 import '../models/reel_model.dart';
 import '../services/reel_service.dart';
 
@@ -577,7 +581,67 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
               ),
           ],
         ),
-        bottomNavigationBar: const CommonNavBar(currentIndex: 3),
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, -5),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+              child: BottomNavigationBar(
+                elevation: 0,
+                backgroundColor: Colors.transparent,
+                type: BottomNavigationBarType.fixed,
+                items: const <BottomNavigationBarItem>[
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home),
+                    label: 'Home',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.chat),
+                    label: 'Chat',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.event),
+                    label: 'Events',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.video_collection),
+                    label: 'Reels',
+                  ),
+                ],
+                currentIndex: 3, // Reels screen index
+                selectedItemColor: Theme.of(context).primaryColor,
+                unselectedItemColor: Colors.grey,
+                onTap: (index) {
+                  if (index == 0) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const HomeScreen()),
+                    );
+                  } else if (index == 1) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ChatScreen()),
+                    );
+                  } else if (index == 2) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const EventsScreen()),
+                    );
+                  }
+                },
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
