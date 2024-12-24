@@ -1,18 +1,27 @@
-# Village App Pratappur
+# Village App Pratappur (v1.0.0)
 
 A Flutter application for village community management with features like photo gallery, emergency services, government schemes information, and more.
 
-## Features
+## Current Version Features (v1.0.0)
+
+- 🏠 Home Screen with Auto-sliding Image Gallery
+- 📸 Middle School Photo Collection
+- 🎯 Smooth Image Transitions
+- 📱 Touch-enabled Controls
+- 🔄 Automatic Image Looping
+- 📢 News and Notifications Section
+- 🎨 Modern Material Design UI
+
+## Planned Features
 
 - 🔐 Authentication with Email/Password and Google Sign In
-- 📱 Beautiful Material Design UI
-- 📸 Photo Gallery
+- 📸 Complete Photo Gallery
 - 🚑 Emergency Services
 - 📜 Government Schemes Information
 - 📝 Grievance Portal
 - 📞 Important Contacts
 - 🎯 Talent Corner
-- 📢 Notifications
+- 📢 Enhanced Notifications
 
 ## Setup Instructions
 
