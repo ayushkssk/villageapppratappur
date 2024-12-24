@@ -23,21 +23,26 @@ class _AddReelScreenState extends State<AddReelScreen> {
 
       try {
         await _reelService.addReel(
-          videoUrl: _videoUrlController.text.trim(),
-          description: _descriptionController.text.trim(),
-          username: 'Admin', // You can modify this based on your admin user
+          _videoUrlController.text.trim(),
+          _descriptionController.text.trim(),
         );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Reel added successfully!')),
+            const SnackBar(
+              content: Text('Reel added successfully!'),
+              backgroundColor: Colors.green,
+            ),
           );
           Navigator.pop(context);
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error adding reel: $e')),
+            SnackBar(
+              content: Text('Error adding reel: $e'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       } finally {
@@ -60,8 +65,18 @@ class _AddReelScreenState extends State<AddReelScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Add New Reel'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text(
+          'Add New Reel',
+          style: TextStyle(color: Colors.white),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -73,10 +88,26 @@ class _AddReelScreenState extends State<AddReelScreen> {
               // Video URL Field
               TextFormField(
                 controller: _videoUrlController,
-                decoration: const InputDecoration(
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
                   labelText: 'Video URL',
+                  labelStyle: const TextStyle(color: Colors.white70),
                   hintText: 'Enter the video URL',
-                  border: OutlineInputBorder(),
+                  hintStyle: const TextStyle(color: Colors.white54),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.purple),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.purple),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.pink, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.1),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -93,10 +124,26 @@ class _AddReelScreenState extends State<AddReelScreen> {
               // Description Field
               TextFormField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
                   labelText: 'Description',
+                  labelStyle: const TextStyle(color: Colors.white70),
                   hintText: 'Enter reel description',
-                  border: OutlineInputBorder(),
+                  hintStyle: const TextStyle(color: Colors.white54),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.purple),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.purple),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.pink, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.1),
                 ),
                 maxLines: 3,
                 validator: (value) {
@@ -113,12 +160,28 @@ class _AddReelScreenState extends State<AddReelScreen> {
                 onPressed: _isLoading ? null : _submitReel,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: Colors.purple,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 3,
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator()
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
                     : const Text(
                         'Add Reel',
-                        style: TextStyle(fontSize: 16),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
               ),
             ],

@@ -6,8 +6,13 @@ import '../screens/events_screen.dart';
 
 class CommonNavBar extends StatelessWidget {
   final int currentIndex;
+  final Function(int)? onTap;
 
-  const CommonNavBar({Key? key, required this.currentIndex}) : super(key: key);
+  const CommonNavBar({
+    Key? key, 
+    required this.currentIndex,
+    this.onTap,
+  }) : super(key: key);
 
   void _onItemTapped(BuildContext context, int index) {
     if (index == currentIndex) return;
@@ -61,7 +66,7 @@ class CommonNavBar extends StatelessWidget {
       currentIndex: currentIndex,
       selectedItemColor: Theme.of(context).colorScheme.primary,
       unselectedItemColor: Colors.grey,
-      onTap: (index) => _onItemTapped(context, index),
+      onTap: onTap ?? (index) => _onItemTapped(context, index),
     );
   }
 }
