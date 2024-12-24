@@ -3,6 +3,7 @@ import 'about_village.dart';
 import 'events_screen.dart';
 import 'home_screen.dart';
 import 'reels_screen.dart';
+import '../widgets/common_navbar.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -83,7 +84,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Village Chat'),
+        title: const Text('Chat'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Colors.white,
         elevation: 2,
         actions: [
           IconButton(
@@ -96,94 +99,72 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: chats.length,
-        itemBuilder: (context, index) {
-          final chat = chats[index];
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).primaryColor.withOpacity(0.2),
-              child: Icon(
-                chat['isGroup'] ? Icons.group : Icons.person,
-                color: Theme.of(context).primaryColor,
-              ),
-            ),
-            title: Text(
-              chat['name'],
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            subtitle: Text(
-              chat['lastMessage'],
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  chat['time'],
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: chat['unread'] > 0 ? Theme.of(context).primaryColor : Colors.grey,
-                  ),
-                ),
-                if (chat['unread'] > 0) ...[
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: chats.length,
+              itemBuilder: (context, index) {
+                final chat = chats[index];
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                    child: Icon(
+                      chat['isGroup'] ? Icons.group : Icons.person,
                       color: Theme.of(context).primaryColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      chat['unread'].toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                      ),
                     ),
                   ),
-                ],
-              ],
+                  title: Text(
+                    chat['name'],
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: Text(
+                    chat['lastMessage'],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        chat['time'],
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: chat['unread'] > 0 ? Theme.of(context).primaryColor : Colors.grey,
+                        ),
+                      ),
+                      if (chat['unread'] > 0) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            chat['unread'].toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  onTap: () {
+                    // Handle chat tap
+                  },
+                );
+              },
             ),
-            onTap: () {
-              // Handle chat tap
-            },
-          );
-        },
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.info),
-            label: 'About',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat),
-            label: 'Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.event),
-            label: 'Events',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.video_collection),
-            label: 'Reels',
           ),
         ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Colors.grey,
-        onTap: _onItemTapped,
       ),
+      bottomNavigationBar: const CommonNavBar(currentIndex: 1),
     );
   }
 }

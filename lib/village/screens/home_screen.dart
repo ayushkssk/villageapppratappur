@@ -24,6 +24,7 @@ import 'chat_screen.dart';
 import 'events_screen.dart';
 import 'reels_screen.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
+import '../widgets/common_navbar.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool showBottomBar;
@@ -610,108 +611,88 @@ class _HomeScreenState extends State<HomeScreen> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadData,
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              child: _buildBody(),
+            ),
+      bottomNavigationBar: const CommonNavBar(currentIndex: 0),
+    );
+  }
+
+  Widget _buildBody() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildImageSlider(),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Quick Access',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildImageSlider(),
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Quick Access',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildQuickAccessItem(
-                                icon: Icons.photo_library,
-                                label: 'Photo\nGallery',
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const PhotoGalleryHome(),
-                                  ),
-                                ),
-                              ),
-                              _buildQuickAccessItem(
-                                icon: Icons.policy,
-                                label: 'Government\nSchemes',
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const GovernmentSchemes(),
-                                  ),
-                                ),
-                              ),
-                              _buildQuickAccessItem(
-                                icon: Icons.contact_phone,
-                                label: 'Important\nContacts',
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const ImportantContacts(),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                    _buildQuickAccessItem(
+                      icon: Icons.photo_library,
+                      label: 'Photo\nGallery',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PhotoGalleryHome(),
+                        ),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Recent Updates',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildRecentUpdateCard(),
-                        ],
+                    _buildQuickAccessItem(
+                      icon: Icons.policy,
+                      label: 'Government\nSchemes',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const GovernmentSchemes(),
+                        ),
+                      ),
+                    ),
+                    _buildQuickAccessItem(
+                      icon: Icons.contact_phone,
+                      label: 'Important\nContacts',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ImportantContacts(),
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
+              ],
             ),
-      bottomNavigationBar: widget.showBottomBar ? BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat),
-            label: 'Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.event),
-            label: 'Events',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.video_collection),
-            label: 'Reels',
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Recent Updates',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildRecentUpdateCard(),
+              ],
+            ),
           ),
         ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Colors.grey,
-        onTap: _onItemTapped,
-      ) : null,
+      ),
     );
   }
 

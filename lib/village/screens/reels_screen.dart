@@ -5,6 +5,7 @@ import 'about_village.dart';
 import 'chat_screen.dart';
 import 'events_screen.dart';
 import 'home_screen.dart';
+import '../widgets/common_navbar.dart';
 
 class ReelsScreen extends StatefulWidget {
   const ReelsScreen({super.key});
@@ -115,23 +116,10 @@ class _ReelsScreenState extends State<ReelsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text(
-          'Reels',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.camera_alt_outlined, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
+        title: const Text('Reels'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Colors.white,
       ),
       body: _chewieControllers.isEmpty
           ? const Center(
@@ -181,35 +169,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
                 );
               },
             ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.info),
-            label: 'About',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat),
-            label: 'Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.event),
-            label: 'Events',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.video_collection),
-            label: 'Reels',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Colors.grey,
-        onTap: _onItemTapped,
-      ),
+      bottomNavigationBar: const CommonNavBar(currentIndex: 3),
     );
   }
 }

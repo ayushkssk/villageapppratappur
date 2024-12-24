@@ -2,13 +2,19 @@
 
 A comprehensive Flutter application for managing village-related information and services.
 
-## Features
+## Latest Updates (v1.1.0)
+
+### Navigation Improvements
+- Implemented unified bottom navigation across all screens
+- Smooth transitions between Home, Chat, Events, and Reels sections
+- Consistent UI/UX experience throughout the app
 
 ### Authentication
 - Email/Password login and signup
 - Google Sign-in integration
 - Secure authentication using Firebase Auth
 - Persistent login state
+- Improved error handling
 
 ### Admin Panel
 - News Updates Management
@@ -17,7 +23,7 @@ A comprehensive Flutter application for managing village-related information and
 - User Management
 
 ### Home Screen
-- Image Slider with auto-scroll
+- Image Slider with auto-scroll and page indicators
 - Quick Access Menu
 - News Updates Section
 - Upcoming Events
@@ -36,6 +42,13 @@ A comprehensive Flutter application for managing village-related information and
 - Clean Architecture Pattern
 - Modular Code Structure
 - Reusable Components
+
+### Navigation System
+The app uses a unified bottom navigation system implemented in `common_navbar.dart`:
+- Consistent navigation experience
+- Four main sections: Home, Chat, Events, and Reels
+- State preservation across navigation
+- Smooth transitions
 
 ### Firebase Integration
 - Authentication
@@ -85,7 +98,12 @@ lib/
   │   │   └── services/
   │   ├── screens/
   │   │   ├── admin/
-  │   │   └── home/
+  │   │   ├── home_screen.dart
+  │   │   ├── chat_screen.dart
+  │   │   ├── events_screen.dart
+  │   │   └── reels_screen.dart
+  │   ├── widgets/
+  │   │   └── common_navbar.dart
   │   └── services/
   └── main.dart
 ```
