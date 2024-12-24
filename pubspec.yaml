@@ -34,6 +34,11 @@ dependencies:
   url_launcher: ^6.2.2
   flutter_image_compress: ^2.1.0
   js: ^0.6.7
+  timeago: ^3.6.0
+  audio_waveforms: ^1.0.4
+  file_picker: ^6.1.1
+  flutter_sound: ^9.2.13
+  permission_handler: ^11.1.0
   # UI Enhancement Packages
   animations: ^2.0.8
   flutter_animate: ^4.3.0
