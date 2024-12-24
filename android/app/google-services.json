@@ -14,15 +14,15 @@
       },
       "oauth_client": [
         {
-          "client_id": "660862490649-XXXXX.apps.googleusercontent.com",
+          "client_id": "660862490649-78496dh20r4181tir9vu4ndms5ihifj1.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.villageapp",
-            "certificate_hash": "your-sha1-fingerprint"
+            "certificate_hash": "d540df9c8178de3cfe59027051ebb89e1358f2de"
           }
         },
         {
-          "client_id": "660862490649-YYYYY.apps.googleusercontent.com",
+          "client_id": "660862490649-rh11iorvrbjtmh86qvhjm7fso5nb0hha.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
@@ -33,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "660862490649-rh11iorvrbjtmh86qvhjm7fso5nb0hha.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "660862490649-0ps7l7tds43kjahdhdfe2f36qhk2brk0.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.villageapp"
+              }
+            }
+          ]
         }
       }
     }

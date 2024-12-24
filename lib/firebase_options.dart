@@ -64,6 +64,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '660862490649',
     projectId: 'village-645a1',
     storageBucket: 'village-645a1.firebasestorage.app',
+    androidClientId: '660862490649-78496dh20r4181tir9vu4ndms5ihifj1.apps.googleusercontent.com',
+    iosClientId: '660862490649-0ps7l7tds43kjahdhdfe2f36qhk2brk0.apps.googleusercontent.com',
     iosBundleId: 'com.example.villageapp',
   );
 
@@ -73,6 +75,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '660862490649',
     projectId: 'village-645a1',
     storageBucket: 'village-645a1.firebasestorage.app',
+    androidClientId: '660862490649-78496dh20r4181tir9vu4ndms5ihifj1.apps.googleusercontent.com',
+    iosClientId: '660862490649-0ps7l7tds43kjahdhdfe2f36qhk2brk0.apps.googleusercontent.com',
     iosBundleId: 'com.example.villageapp',
   );
 
@@ -85,4 +89,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'village-645a1.firebasestorage.app',
     measurementId: 'G-E9MQL3WT8L',
   );
+
 }
