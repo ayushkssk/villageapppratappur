@@ -184,6 +184,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final eventsSnapshot = await _firestoreService.getEvents().first;
       final alertsSnapshot = await _firestoreService.getEmergencyAlerts().first;
 
+      if (!mounted) return;
+
       setState(() {
         _newsUpdates = newsSnapshot.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
@@ -216,15 +218,17 @@ class _HomeScreenState extends State<HomeScreen> {
           };
         }).toList();
 
-        _notificationCount = _emergencyAlerts.length;
-
+        _notificationCount = _emergencyAlerts.where((alert) => alert['isActive'] == true).length;
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading data: $e');
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading data: $e')),
+      );
     }
   }
 
@@ -749,83 +753,67 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildImageSlider() {
-    return AspectRatio(
-      aspectRatio: 16 / 9,
-      child: Container(
-        margin: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Stack(
-          children: [
-            PageView.builder(
-              controller: _newsController,
-              itemCount: _imageUrls.length,
-              onPageChanged: (index) {
-                setState(() {
-                  _currentNewsIndex = index;
-                });
-              },
-              itemBuilder: (context, index) {
-                return GestureDetector(
-                  onPanDown: (_) {
-                    _imageSlideTimer?.cancel();
-                  },
-                  onPanCancel: () {
-                    _startImageSlideTimer();
-                  },
-                  onPanEnd: (_) {
-                    _startImageSlideTimer();
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(15),
-                      color: Colors.grey[200],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(15),
-                      child: Image.asset(
-                        _imageUrls[index],
-                        fit: BoxFit.cover,
-                        cacheWidth: 800,
-                        cacheHeight: 600,
-                        filterQuality: FilterQuality.low,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.3),
-                    ],
+    return Container(
+      height: 200,
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: _newsController,
+            itemCount: _imageUrls.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentNewsIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.asset(
+                    _imageUrls[index],
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      print('Error loading image: $error');
+                      return Container(
+                        color: Colors.grey[300],
+                        child: Center(
+                          child: Icon(
+                            Icons.image_not_supported,
+                            size: 50,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
-                child: SmoothPageIndicator(
-                  controller: _newsController,
-                  count: _imageUrls.length,
-                  effect: const ExpandingDotsEffect(
-                    dotColor: Colors.white,
-                    activeDotColor: Colors.green,
-                    dotHeight: 8,
-                    dotWidth: 8,
-                    expansionFactor: 4,
-                    spacing: 4,
+              );
+            },
+          ),
+          Positioned(
+            bottom: 8,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                _imageUrls.length,
+                (index) => Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _currentNewsIndex == index
+                        ? Theme.of(context).primaryColor
+                        : Colors.grey.withOpacity(0.5),
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

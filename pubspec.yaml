@@ -50,5 +50,14 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/images/middle_school/
+    - assets/images/creators/
+    - assets/images/festivals/
+    - assets/images/functions/
+    - assets/images/logos/
+    - assets/images/others/
+    - assets/images/schools/
+    - assets/images/streets/
+    - assets/images/temples/
     - assets/icons/
     - assets/animations/
