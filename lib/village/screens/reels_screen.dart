@@ -1,12 +1,12 @@
-/// A screen that displays short-form video content (reels) in a vertical scrollable format.
-/// Features include:
-/// - Full-screen video playback
-/// - Auto-play/pause on scroll
-/// - Double tap to like
-/// - Progress bar with Instagram-style gradient
-/// - View count tracking
-/// - Like functionality
-/// - Memory efficient video loading (only keeps 3 videos in memory)
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:video_player/video_player.dart';
+import 'package:like_button/like_button.dart';
+import '../widgets/common_navbar.dart';
+import '../models/reel_model.dart';
+import '../services/reel_service.dart';
+
 class ReelsScreen extends StatefulWidget {
   const ReelsScreen({super.key});
 
