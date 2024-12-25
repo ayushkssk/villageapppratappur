@@ -19,7 +19,12 @@ class _AdminPanelState extends State<AdminPanel> with SingleTickerProviderStateM
   final FirestoreService _firestoreService = FirestoreService();
   final ImagePicker _picker = ImagePicker();
   bool _isLoading = false;
+  bool _isAuthenticated = false;
   XFile? _selectedImage;
+  final _formKey = GlobalKey<FormState>();
+  final _videoUrlController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _pinController = TextEditingController();
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -454,6 +459,60 @@ class _AdminPanelState extends State<AdminPanel> with SingleTickerProviderStateM
     );
   }
 
+  Future<void> _showPinDialog() async {
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Enter Admin PIN'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _pinController,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              obscureText: true,
+              decoration: const InputDecoration(
+                hintText: 'Enter 4-digit PIN',
+                border: OutlineInputBorder(),
+                counterText: '',
+              ),
+            ),
+            if (_pinController.text.length == 4 && _pinController.text != '0471')
+              const Padding(
+                padding: EdgeInsets.only(top: 8.0),
+                child: Text(
+                  'Invalid PIN',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop(); // Go back to previous screen
+            },
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (_pinController.text == '0000') {
+                setState(() => _isAuthenticated = true);
+                Navigator.of(context).pop();
+              } else {
+                _pinController.clear();
+              }
+            },
+            child: const Text('Verify'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Memory efficient image loading
   Widget _buildNetworkImage(String url, {double? height}) {
     return Image.network(
@@ -483,6 +542,30 @@ class _AdminPanelState extends State<AdminPanel> with SingleTickerProviderStateM
     );
   }
 
+  Future<bool> _showDeleteConfirmation(String itemType) async {
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete $itemType'),
+        content: Text('Are you sure you want to delete this $itemType? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    return confirm ?? false;
+  }
+
   Widget _buildNewsUpdateCard(DocumentSnapshot newsUpdate) {
     final data = newsUpdate.data() as Map<String, dynamic>;
     return Card(
@@ -498,14 +581,16 @@ class _AdminPanelState extends State<AdminPanel> with SingleTickerProviderStateM
           onPressed: _isLoading
               ? null
               : () async {
-                  try {
-                    _setLoading(true);
-                    await _firestoreService.deleteNewsUpdate(newsUpdate.id);
-                    _showSnackBar('News update deleted successfully');
-                  } catch (e) {
-                    _showSnackBar('Error deleting news update: $e');
-                  } finally {
-                    _setLoading(false);
+                  if (await _showDeleteConfirmation('news update')) {
+                    try {
+                      _setLoading(true);
+                      await _firestoreService.deleteNewsUpdate(newsUpdate.id);
+                      _showSnackBar('News update deleted successfully');
+                    } catch (e) {
+                      _showSnackBar('Error deleting news update: $e');
+                    } finally {
+                      _setLoading(false);
+                    }
                   }
                 },
         ),
@@ -555,14 +640,16 @@ class _AdminPanelState extends State<AdminPanel> with SingleTickerProviderStateM
           onPressed: _isLoading
               ? null
               : () async {
-                  try {
-                    _setLoading(true);
-                    await _firestoreService.deleteEvent(event.id);
-                    _showSnackBar('Event deleted successfully');
-                  } catch (e) {
-                    _showSnackBar('Error deleting event: $e');
-                  } finally {
-                    _setLoading(false);
+                  if (await _showDeleteConfirmation('event')) {
+                    try {
+                      _setLoading(true);
+                      await _firestoreService.deleteEvent(event.id);
+                      _showSnackBar('Event deleted successfully');
+                    } catch (e) {
+                      _showSnackBar('Error deleting event: $e');
+                    } finally {
+                      _setLoading(false);
+                    }
                   }
                 },
         ),
@@ -589,14 +676,16 @@ class _AdminPanelState extends State<AdminPanel> with SingleTickerProviderStateM
           onPressed: _isLoading
               ? null
               : () async {
-                  try {
-                    _setLoading(true);
-                    await _firestoreService.deleteEmergencyAlert(alert.id);
-                    _showSnackBar('Emergency alert deleted successfully');
-                  } catch (e) {
-                    _showSnackBar('Error deleting emergency alert: $e');
-                  } finally {
-                    _setLoading(false);
+                  if (await _showDeleteConfirmation('emergency alert')) {
+                    try {
+                      _setLoading(true);
+                      await _firestoreService.deleteEmergencyAlert(alert.id);
+                      _showSnackBar('Emergency alert deleted successfully');
+                    } catch (e) {
+                      _showSnackBar('Error deleting emergency alert: $e');
+                    } finally {
+                      _setLoading(false);
+                    }
                   }
                 },
         ),
@@ -604,10 +693,62 @@ class _AdminPanelState extends State<AdminPanel> with SingleTickerProviderStateM
     );
   }
 
+  Future<void> _submitReel() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    try {
+      _setLoading(true);
+      final reel = {
+        'videoUrl': _videoUrlController.text,
+        'description': _descriptionController.text,
+        'timestamp': Timestamp.now(),
+      };
+      await _firestoreService.addReel(reel);
+      _showSnackBar('Reel added successfully');
+      _videoUrlController.clear();
+      _descriptionController.clear();
+    } catch (e) {
+      _showSnackBar('Error adding reel: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_isAuthenticated) {
+        _showPinDialog();
+      }
+    });
+    _videoUrlController.text = 'https://ia800106.us.archive.org/2/items/milleschool_v0/VIDEO-2024-12-23-13-16-31.mp4';
+    _descriptionController.text = 'Mille School Video - December 23, 2024';
+    _submitReel();
+  }
+
+  @override
+  void dispose() {
+    _pinController.dispose();
+    _videoUrlController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (!_isAuthenticated) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Admin Panel'),
@@ -616,6 +757,7 @@ class _AdminPanelState extends State<AdminPanel> with SingleTickerProviderStateM
               Tab(text: 'News Updates'),
               Tab(text: 'Events'),
               Tab(text: 'Emergency'),
+              Tab(text: 'Reels'),
             ],
           ),
         ),
@@ -738,6 +880,146 @@ class _AdminPanelState extends State<AdminPanel> with SingleTickerProviderStateM
                       },
                     ),
                   ],
+                ),
+              ),
+            ),
+            // Reels Tab
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Add New Reel',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _videoUrlController,
+                                decoration: InputDecoration(
+                                  labelText: 'Video URL',
+                                  hintText: 'Enter the video URL',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  prefixIcon: const Icon(Icons.link),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter video URL';
+                                  }
+                                  if (!Uri.tryParse(value)!.isAbsolute) {
+                                    return 'Please enter a valid URL';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _descriptionController,
+                                maxLines: 3,
+                                decoration: InputDecoration(
+                                  labelText: 'Description',
+                                  hintText: 'Enter reel description',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  prefixIcon: const Icon(Icons.description),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter description';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: _isLoading ? null : _submitReel,
+                                  icon: const Icon(Icons.video_library),
+                                  label: Text(_isLoading ? 'Adding...' : 'Add Reel'),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      // List of existing reels
+                      StreamBuilder<QuerySnapshot>(
+                        stream: _firestoreService.getReels(),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return Text('Error: ${snapshot.error}');
+                          }
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const CircularProgressIndicator();
+                          }
+                          final reels = snapshot.data?.docs ?? [];
+                          if (reels.isEmpty) {
+                            return const Center(
+                              child: Text('No reels found'),
+                            );
+                          }
+                          return ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: reels.length,
+                            itemBuilder: (context, index) {
+                              final reel = reels[index];
+                              final data = reel.data() as Map<String, dynamic>;
+                              return Card(
+                                child: ListTile(
+                                  leading: const CircleAvatar(
+                                    child: Icon(Icons.video_library),
+                                  ),
+                                  title: Text(data['description'] ?? 'No description'),
+                                  subtitle: Text(data['videoUrl'] ?? 'No URL'),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.delete),
+                                    onPressed: () async {
+                                      if (await _showDeleteConfirmation('reel')) {
+                                        try {
+                                          await _firestoreService.deleteReel(reel.id);
+                                          _showSnackBar('Reel deleted successfully');
+                                        } catch (e) {
+                                          _showSnackBar('Error deleting reel: $e');
+                                        }
+                                      }
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

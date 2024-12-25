@@ -72,4 +72,20 @@ class FirestoreService {
   Future<void> deleteEmergencyAlert(String id) async {
     await _firestore.collection('emergency_alerts').doc(id).delete();
   }
+
+  // Reels
+  Stream<QuerySnapshot> getReels() {
+    return _firestore
+        .collection('reels')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+  }
+
+  Future<void> addReel(Map<String, dynamic> reel) async {
+    await _firestore.collection('reels').add(reel);
+  }
+
+  Future<void> deleteReel(String id) async {
+    await _firestore.collection('reels').doc(id).delete();
+  }
 }

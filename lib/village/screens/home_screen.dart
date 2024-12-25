@@ -47,7 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _refreshTimer;
   Timer? _newsScrollTimer;
   Timer? _imageSlideTimer;
-  int _selectedIndex = 0;  // Add this line
+  int _selectedIndex = 0;  
   final PageController _newsController = PageController(
     viewportFraction: 1.0,
     keepPage: true,
@@ -78,6 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const EventsScreen(),
     const ReelsScreen(),
   ];
+  int _selectedUpdateIndex = 0;
 
   void _onItemTapped(int index) {
     if (_selectedIndex != index) {
@@ -882,52 +883,262 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
-            spreadRadius: 1,
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 2,
+            blurRadius: 15,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            child: Image.asset(
-              'assets/images/middle_school/middleschool4.png',
-              width: double.infinity,
-              height: 200,
-              fit: BoxFit.cover,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'New Road Construction Completed',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-                SizedBox(height: 12),
-                Text(
-                  'The road construction from main market to village has been completed.',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF666666),
-                    height: 1.5,
-                  ),
-                ),
+          // Categories Tab Bar
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                _buildCategoryTab('News', Icons.article, 0),
+                _buildCategoryTab('Events', Icons.event, 1),
+                _buildCategoryTab('Alerts', Icons.warning, 2),
               ],
             ),
+          ),
+          const Divider(height: 1),
+          // Updates List
+          _selectedUpdateIndex == 0
+              ? _buildNewsList()
+              : _selectedUpdateIndex == 1
+                  ? _buildEventsList()
+                  : _buildAlertsList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryTab(String label, IconData icon, int index) {
+    bool isSelected = _selectedUpdateIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedUpdateIndex = index;
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: isSelected ? Theme.of(context).primaryColor : Colors.transparent,
+                width: 2,
+              ),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNewsList() {
+    return Column(
+      children: _newsUpdates.map((news) {
+        return _buildUpdateItem(
+          title: news['title'],
+          content: news['content'],
+          timestamp: (news['timestamp'] as Timestamp).toDate(),
+          icon: Icons.article,
+          color: Colors.blue,
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildEventsList() {
+    return Column(
+      children: _events.map((event) {
+        return _buildUpdateItem(
+          title: event['title'],
+          content: '${event['description']}\nLocation: ${event['location']}',
+          timestamp: (event['date'] as Timestamp).toDate(),
+          icon: Icons.event,
+          color: Colors.green,
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildAlertsList() {
+    return Column(
+      children: _emergencyAlerts
+          .where((alert) => alert['isActive'] == true)
+          .map((alert) {
+        return _buildUpdateItem(
+          title: 'Emergency Alert',
+          content: alert['message'],
+          timestamp: (alert['timestamp'] as Timestamp).toDate(),
+          icon: Icons.warning,
+          color: Colors.red,
+          isAlert: true,
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildUpdateItem({
+    required String title,
+    required String content,
+    required DateTime timestamp,
+    required IconData icon,
+    required Color color,
+    bool isAlert = false,
+  }) {
+    String timeAgo = _getTimeAgo(timestamp);
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.grey.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      timeAgo,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isAlert)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'URGENT',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            content,
+            style: const TextStyle(fontSize: 14),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () {
+                  // Show full content in a dialog
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Text(title),
+                      content: SingleChildScrollView(
+                        child: Text(content),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Close'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                child: const Text('Read More'),
+              ),
+              IconButton(
+                icon: const Icon(Icons.share),
+                onPressed: () {
+                  // Implement share functionality
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Sharing...')),
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  String _getTimeAgo(DateTime dateTime) {
+    final difference = DateTime.now().difference(dateTime);
+    
+    if (difference.inDays > 365) {
+      return '${(difference.inDays / 365).floor()} year(s) ago';
+    } else if (difference.inDays > 30) {
+      return '${(difference.inDays / 30).floor()} month(s) ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} day(s) ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hour(s) ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minute(s) ago';
+    } else {
+      return 'Just now';
+    }
   }
 }
