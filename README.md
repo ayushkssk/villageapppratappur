@@ -2,7 +2,31 @@
 
 A comprehensive Flutter application for managing village-related information and services.
 
-## Latest Updates (v1.1.0)
+## Latest Updates (v1.2.0)
+
+### News Update UI Improvements
+- **Enhanced Image Selection**
+  - Gallery image picker with preview
+  - Asset image selection grid with thumbnails
+  - Support for both network and asset images
+  - Improved image preview with loading states
+  - Remove/change image functionality
+
+- **Admin Panel Enhancements**
+  - Redesigned news update cards with better layout
+  - Edit functionality for existing news updates
+  - Improved delete confirmation dialogs
+  - Better error handling and user feedback
+  - Loading indicators for async operations
+
+- **UI/UX Improvements**
+  - Fixed overflow issues in dialogs
+  - Responsive layout adaptations
+  - Consistent styling and animations
+  - Better input validation and error messages
+  - Smooth transitions and loading states
+
+### Previous Updates (v1.1.0)
 
 ### Navigation Improvements
 - Implemented unified bottom navigation across all screens
@@ -62,6 +86,25 @@ The app uses a unified bottom navigation system implemented in `common_navbar.da
 - Efficient State Management
 - Error Handling
 
+### News Update System
+- **Image Management**
+  - Support for both local and asset images
+  - Automatic image compression and resizing
+  - Efficient caching mechanism
+  - Fallback images for failed loads
+
+- **State Management**
+  - Real-time updates using Firestore streams
+  - Optimistic UI updates for better UX
+  - Proper error handling and recovery
+  - Loading state management
+
+- **UI Components**
+  - Reusable image picker dialog
+  - Custom card layouts
+  - Loading indicators
+  - Error message displays
+
 ## Setup Instructions
 
 1. Clone the repository:
@@ -98,13 +141,19 @@ lib/
   │   │   └── services/
   │   ├── screens/
   │   │   ├── admin/
-  │   │   ├── home_screen.dart
-  │   │   ├── chat_screen.dart
-  │   │   ├── events_screen.dart
-  │   │   └── reels_screen.dart
-  │   ├── widgets/
-  │   │   └── common_navbar.dart
-  │   └── services/
+  │   │   │   ├── admin_panel.dart        # Admin dashboard with CRUD operations
+  │   │   │   └── components/             # Reusable admin components
+  │   │   ├── home_screen.dart           # Main home screen
+  │   │   └── main_screen.dart           # App shell with navigation
+  │   ├── services/
+  │   │   ├── auth_service.dart
+  │   │   └── firestore_service.dart     # Firebase operations
+  │   ├── models/
+  │   │   ├── news_update.dart           # News update data model
+  │   │   └── event.dart                 # Event data model
+  │   └── widgets/
+  │       ├── image_picker_dialog.dart    # Custom image picker
+  │       └── news_card.dart             # News display card
   └── main.dart
 ```
 
@@ -119,12 +168,14 @@ lib/
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+
+## Acknowledgments
+
+* Flutter Team for the amazing framework
+* Firebase for backend services
+* All contributors who helped improve this app
