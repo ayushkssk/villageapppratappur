@@ -21,10 +21,13 @@ class _AdminPanelState extends State<AdminPanel> with SingleTickerProviderStateM
   bool _isLoading = false;
   bool _isAuthenticated = false;
   XFile? _selectedImage;
+  String? _selectedAssetImage;
   final _formKey = GlobalKey<FormState>();
   final _videoUrlController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _pinController = TextEditingController();
+
+  List<String> _assetImages = [];
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -41,6 +44,7 @@ class _AdminPanelState extends State<AdminPanel> with SingleTickerProviderStateM
     if (image != null) {
       setState(() {
         _selectedImage = image;
+        _selectedAssetImage = null; // Clear any selected asset image
       });
     }
   }
@@ -48,72 +52,247 @@ class _AdminPanelState extends State<AdminPanel> with SingleTickerProviderStateM
   void _removeSelectedImage() {
     setState(() {
       _selectedImage = null;
+      _selectedAssetImage = null;
+    });
+  }
+
+  void _showAssetImagePicker() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Choose Image',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 0),
+            Flexible(
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.6,
+                ),
+                child: GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                  ),
+                  itemCount: _assetImages.length,
+                  itemBuilder: (context, index) {
+                    return InkWell(
+                      onTap: () {
+                        setState(() {
+                          _selectedAssetImage = _assetImages[index];
+                          _selectedImage = null;
+                        });
+                        Navigator.pop(context);
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.asset(
+                            _assetImages[index],
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadAssetImages() async {
+    // Add all your asset image paths here
+    setState(() {
+      _assetImages = [
+        'assets/images/middle_school/middle_school.png',
+        'assets/images/middle_school/middleschool0.png',
+        'assets/images/middle_school/middleschool1.png',
+        'assets/images/middle_school/middleschool2.png',
+        'assets/images/middle_school/middleschool3.png',
+        'assets/images/middle_school/middleschool4.png',
+        'assets/images/middle_school/middleschool5.png',
+        'assets/images/middle_school/middleschool6.png',
+        'assets/images/middle_school/middleschool7.png',
+        'assets/images/middle_school/middleschool8.png',
+        'assets/images/middle_school/middleschool9.png',
+        'assets/images/middle_school/middleschool10.png',
+        'assets/images/middle_school/middleschool11.png',
+        'assets/images/middle_school/middleschool12.png',
+        'assets/images/middle_school/middleschool13.png',
+        'assets/images/middle_school/middleschool14.png',
+        'assets/images/village_header.png',
+        'assets/images/village_image.png',
+        'assets/images/village_logo.png',
+        'assets/images/village.png',
+        'assets/images/village1.png',
+        'assets/images/village2.png',
+        'assets/images/village3.png',
+        'assets/images/village4.png',
+      ];
     });
   }
 
   Widget _buildImagePreview() {
-    if (_selectedImage == null) {
-      return Container(
-        height: 200,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.image, size: 50, color: Colors.grey[400]),
-            const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: _pickImage,
-              child: const Text('Choose Image'),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            height: 200,
+            decoration: BoxDecoration(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+              color: Colors.grey[100],
             ),
-          ],
-        ),
-      );
-    }
-
-    return Stack(
-      children: [
-        Container(
-          height: 200,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            image: DecorationImage(
-              image: FileImage(File(_selectedImage!.path)),
-              fit: BoxFit.cover,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (_selectedImage != null)
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+                    child: Image.file(
+                      File(_selectedImage!.path),
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                else if (_selectedAssetImage != null)
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+                    child: Image.asset(
+                      _selectedAssetImage!,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                else
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.image_outlined,
+                        size: 48,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No image selected',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                if (_selectedImage != null || _selectedAssetImage != null)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Material(
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(20),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _selectedImage = null;
+                            _selectedAssetImage = null;
+                          });
+                        },
+                        tooltip: 'Remove Image',
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-        ),
-        Positioned(
-          top: 8,
-          right: 8,
-          child: Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.red),
-              onPressed: _removeSelectedImage,
-              tooltip: 'Remove Image',
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(11)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _pickImage,
+                    icon: const Icon(Icons.photo_library),
+                    label: const Text('Gallery'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black87,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _showAssetImagePicker,
+                    icon: const Icon(Icons.image),
+                    label: const Text('Assets'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black87,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-        Positioned(
-          bottom: 8,
-          right: 8,
-          child: Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            child: IconButton(
-              icon: const Icon(Icons.edit, color: Colors.blue),
-              onPressed: _pickImage,
-              tooltip: 'Change Image',
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -206,81 +385,138 @@ class _AdminPanelState extends State<AdminPanel> with SingleTickerProviderStateM
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add News Update'),
-        content: SingleChildScrollView(
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.9,
+          padding: const EdgeInsets.all(16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ElevatedButton.icon(
-                onPressed: () {
-                  _quickFillNewsUpdate(titleController, descriptionController);
-                },
-                icon: const Icon(Icons.flash_on),
-                label: const Text('Quick Fill'),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Add News Update',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  hintText: 'Enter news title',
+              const Divider(),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          _quickFillNewsUpdate(titleController, descriptionController);
+                        },
+                        icon: const Icon(Icons.flash_on),
+                        label: const Text('Quick Fill'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          foregroundColor: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: titleController,
+                        decoration: InputDecoration(
+                          labelText: 'Title',
+                          hintText: 'Enter news title',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: descriptionController,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          labelText: 'Description',
+                          hintText: 'Enter news description',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildImagePreview(),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () async {
+                              if (titleController.text.isEmpty || descriptionController.text.isEmpty) {
+                                _showSnackBar('Please fill all fields');
+                                return;
+                              }
+
+                              try {
+                                _setLoading(true);
+                                String? finalImageUrl;
+                                
+                                if (_selectedImage != null) {
+                                  finalImageUrl = await _uploadImage(File(_selectedImage!.path));
+                                } else if (_selectedAssetImage != null) {
+                                  finalImageUrl = _selectedAssetImage;
+                                }
+
+                                final newsUpdate = NewsUpdate(
+                                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                  title: titleController.text,
+                                  description: descriptionController.text,
+                                  imageUrl: finalImageUrl ?? '',
+                                  timestamp: DateTime.now(),
+                                );
+                                
+                                await _firestoreService.addNewsUpdate(newsUpdate);
+                                _showSnackBar('News update added successfully');
+                                Navigator.pop(context);
+                              } catch (e) {
+                                _showSnackBar('Error adding news update: $e');
+                              } finally {
+                                _setLoading(false);
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            ),
+                            child: const Text('Add Update'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descriptionController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  hintText: 'Enter news description',
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildImagePreview(),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              if (titleController.text.isEmpty || descriptionController.text.isEmpty) {
-                _showSnackBar('Please fill all fields');
-                return;
-              }
-
-              try {
-                _setLoading(true);
-                String imageUrl = '';
-                
-                if (_selectedImage != null) {
-                  imageUrl = await _uploadImage(File(_selectedImage!.path)) ?? '';
-                }
-
-                final newsUpdate = NewsUpdate(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  title: titleController.text,
-                  description: descriptionController.text,
-                  imageUrl: imageUrl,
-                  timestamp: DateTime.now(),
-                );
-                
-                await _firestoreService.addNewsUpdate(newsUpdate);
-                _showSnackBar('News update added successfully');
-                Navigator.pop(context);
-              } catch (e) {
-                _showSnackBar('Error adding news update: $e');
-              } finally {
-                _setLoading(false);
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
       ),
     );
   }
@@ -566,33 +802,428 @@ class _AdminPanelState extends State<AdminPanel> with SingleTickerProviderStateM
     return confirm ?? false;
   }
 
+  Future<bool> _showDeleteConfirmationWithId(String itemType, String id) async {
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete $itemType'),
+        content: Text('Are you sure you want to delete this $itemType? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                _setLoading(true);
+                await _firestoreService.deleteNewsUpdate(id);
+                _showSnackBar('News update deleted successfully');
+                Navigator.pop(context, true);
+              } catch (e) {
+                _showSnackBar('Error deleting news update: $e');
+                Navigator.pop(context, false);
+              } finally {
+                _setLoading(false);
+              }
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    return confirm ?? false;
+  }
+
   Widget _buildNewsUpdateCard(DocumentSnapshot newsUpdate) {
     final data = newsUpdate.data() as Map<String, dynamic>;
+    final title = data['title'] ?? 'Untitled';
+    final description = data['description'] ?? '';
+    final imageUrl = data['imageUrl'] ?? '';
+    final timestamp = (data['timestamp'] as Timestamp).toDate();
+
     return Card(
-      child: ListTile(
-        title: Text(data['title']),
-        subtitle: Text(
-          data['description'],
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (imageUrl.isNotEmpty)
+            Container(
+              height: 200,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                image: DecorationImage(
+                  image: imageUrl.startsWith('assets/')
+                    ? AssetImage(imageUrl) as ImageProvider
+                    : NetworkImage(imageUrl),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(description),
+                const SizedBox(height: 8),
+                Text(
+                  'Posted: ${timestamp.toString().split('.')[0]}',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton.icon(
+                      icon: const Icon(Icons.edit, size: 20),
+                      label: const Text('Edit'),
+                      onPressed: () => _editNewsUpdate(newsUpdate),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.blue,
+                      ),
+                    ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.delete, size: 20),
+                      label: const Text('Delete'),
+                      onPressed: () => _showDeleteConfirmationWithId('news update', newsUpdate.id),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editNewsUpdate(DocumentSnapshot newsUpdate) async {
+    final data = newsUpdate.data() as Map<String, dynamic>;
+    final titleController = TextEditingController(text: data['title']);
+    final descriptionController = TextEditingController(text: data['description']);
+    String? currentImageUrl = data['imageUrl'];
+    XFile? newSelectedImage;
+    String? newSelectedAssetImage;
+    bool isLoading = false;
+
+    bool validateInputs() {
+      if (titleController.text.trim().isEmpty) {
+        _showSnackBar('Please enter a title');
+        return false;
+      }
+      if (descriptionController.text.trim().isEmpty) {
+        _showSnackBar('Please enter a description');
+        return false;
+      }
+      return true;
+    }
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete),
-          onPressed: _isLoading
-              ? null
-              : () async {
-                  if (await _showDeleteConfirmation('news update')) {
-                    try {
-                      _setLoading(true);
-                      await _firestoreService.deleteNewsUpdate(newsUpdate.id);
-                      _showSnackBar('News update deleted successfully');
-                    } catch (e) {
-                      _showSnackBar('Error deleting news update: $e');
-                    } finally {
-                      _setLoading(false);
-                    }
-                  }
-                },
+        child: StatefulBuilder(
+          builder: (context, setState) => Container(
+            width: MediaQuery.of(context).size.width * 0.9,
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Edit News Update',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (!isLoading)
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                  ],
+                ),
+                const Divider(),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        TextField(
+                          controller: titleController,
+                          enabled: !isLoading,
+                          decoration: InputDecoration(
+                            labelText: 'Title',
+                            hintText: 'Enter news title',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[100],
+                            errorText: titleController.text.trim().isEmpty ? 'Title is required' : null,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: descriptionController,
+                          enabled: !isLoading,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            labelText: 'Description',
+                            hintText: 'Enter news description',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[100],
+                            errorText: descriptionController.text.trim().isEmpty ? 'Description is required' : null,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          height: 200,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey),
+                          ),
+                          child: Stack(
+                            children: [
+                              if (newSelectedImage != null)
+                                Image.file(
+                                  File(newSelectedImage!.path),
+                                  height: 200,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                )
+                              else if (newSelectedAssetImage != null)
+                                Image.asset(
+                                  newSelectedAssetImage!,
+                                  height: 200,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                )
+                              else if (currentImageUrl != null && currentImageUrl!.isNotEmpty)
+                                currentImageUrl!.startsWith('assets/')
+                                  ? Image.asset(
+                                      currentImageUrl!,
+                                      height: 200,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Image.network(
+                                      currentImageUrl!,
+                                      height: 200,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) return child;
+                                        return const Center(
+                                          child: CircularProgressIndicator(),
+                                        );
+                                      },
+                                      errorBuilder: (context, error, stackTrace) => const Center(
+                                        child: Icon(Icons.error, color: Colors.red),
+                                      ),
+                                    ),
+                              if (!isLoading)
+                                Positioned(
+                                  right: 8,
+                                  top: 8,
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        backgroundColor: Colors.white,
+                                        child: IconButton(
+                                          icon: const Icon(Icons.edit, color: Colors.blue),
+                                          onPressed: () async {
+                                            final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+                                            if (image != null) {
+                                              setState(() {
+                                                newSelectedImage = image;
+                                                newSelectedAssetImage = null;
+                                                currentImageUrl = null;
+                                              });
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      if (newSelectedImage != null || newSelectedAssetImage != null || currentImageUrl != null)
+                                        CircleAvatar(
+                                          backgroundColor: Colors.white,
+                                          child: IconButton(
+                                            icon: const Icon(Icons.close, color: Colors.red),
+                                            onPressed: () {
+                                              setState(() {
+                                                newSelectedImage = null;
+                                                newSelectedAssetImage = null;
+                                                currentImageUrl = null;
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (!isLoading)
+                          ElevatedButton(
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => Dialog(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Text(
+                                          'Choose an Image',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        SizedBox(
+                                          height: 400,
+                                          child: GridView.builder(
+                                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                              crossAxisCount: 3,
+                                              crossAxisSpacing: 8,
+                                              mainAxisSpacing: 8,
+                                            ),
+                                            itemCount: _assetImages.length,
+                                            itemBuilder: (context, index) {
+                                              return InkWell(
+                                                onTap: () {
+                                                  setState(() {
+                                                    newSelectedAssetImage = _assetImages[index];
+                                                    newSelectedImage = null;
+                                                    currentImageUrl = null;
+                                                  });
+                                                  Navigator.pop(context);
+                                                },
+                                                child: Image.asset(
+                                                  _assetImages[index],
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey[200],
+                              foregroundColor: Colors.black87,
+                            ),
+                            child: const Text('Choose from Asset Images'),
+                          ),
+                        const SizedBox(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            if (!isLoading) ...[
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancel'),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            ElevatedButton(
+                              onPressed: isLoading
+                                  ? null
+                                  : () async {
+                                      if (!validateInputs()) return;
+
+                                      try {
+                                        setState(() => isLoading = true);
+                                        String? finalImageUrl = currentImageUrl;
+                                        
+                                        if (newSelectedImage != null) {
+                                          finalImageUrl = await _uploadImage(File(newSelectedImage!.path));
+                                          if (finalImageUrl == null) throw Exception('Failed to upload image');
+                                        } else if (newSelectedAssetImage != null) {
+                                          finalImageUrl = newSelectedAssetImage;
+                                        }
+
+                                        await _firestoreService.updateNewsUpdate(
+                                          newsUpdate.id,
+                                          {
+                                            'title': titleController.text.trim(),
+                                            'description': descriptionController.text.trim(),
+                                            'imageUrl': finalImageUrl ?? '',
+                                            'timestamp': DateTime.now(),
+                                          },
+                                        );
+                                        
+                                        _showSnackBar('News update edited successfully');
+                                        Navigator.pop(context);
+                                      } catch (e) {
+                                        setState(() => isLoading = false);
+                                        _showSnackBar('Error editing news update: ${e.toString()}');
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(context).primaryColor,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              ),
+                              child: isLoading
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Text('Save Changes'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -719,6 +1350,7 @@ class _AdminPanelState extends State<AdminPanel> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
+    _loadAssetImages();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_isAuthenticated) {
         _showPinDialog();

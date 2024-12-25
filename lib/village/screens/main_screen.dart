@@ -3,7 +3,7 @@ import 'home_screen.dart';
 import 'chat_screen.dart';
 import 'events_screen.dart';
 import 'reels_screen.dart';
-import 'admin/admin_screen.dart';
+// import 'admin/admin_panel.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});

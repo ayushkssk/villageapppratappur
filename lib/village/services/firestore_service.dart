@@ -17,6 +17,10 @@ class FirestoreService {
     await _firestore.collection('news').doc(newsUpdate.id).set(newsUpdate.toMap());
   }
 
+  Future<void> updateNewsUpdate(String id, Map<String, dynamic> data) async {
+    await _firestore.collection('news').doc(id).update(data);
+  }
+
   Future<void> deleteNewsUpdate(String id) async {
     await _firestore.collection('news').doc(id).delete();
   }

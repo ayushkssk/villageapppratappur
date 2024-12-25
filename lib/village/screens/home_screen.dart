@@ -47,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _refreshTimer;
   Timer? _newsScrollTimer;
   Timer? _imageSlideTimer;
+  Timer? _updateSlideTimer;
   int _selectedIndex = 0;  
   final PageController _newsController = PageController(
     viewportFraction: 1.0,
@@ -79,6 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const ReelsScreen(),
   ];
   int _selectedUpdateIndex = 0;
+  final PageController _updateController = PageController();
 
   void _onItemTapped(int index) {
     if (_selectedIndex != index) {
@@ -126,6 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadData();
     _startImageSlideTimer();
+    _startUpdateAutoSlide();
     _refreshTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
       _loadData();
     });
@@ -140,6 +143,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _imageSlideTimer?.cancel();
     _newsController.dispose();
+    _updateSlideTimer?.cancel();
+    _updateController.dispose();
     _refreshTimer?.cancel();
     super.dispose();
   }
@@ -191,6 +196,22 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _startUpdateAutoSlide() {
+    _updateSlideTimer?.cancel();
+    _updateSlideTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (_newsUpdates.isNotEmpty && mounted) {
+        setState(() {
+          _selectedUpdateIndex = (_selectedUpdateIndex + 1) % _newsUpdates.length;
+        });
+        _updateController.animateToPage(
+          _selectedUpdateIndex,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
   Future<void> _loadData() async {
     try {
       setState(() {
@@ -209,8 +230,9 @@ class _HomeScreenState extends State<HomeScreen> {
           return {
             'id': doc.id,
             'title': data['title'] ?? 'Untitled',
-            'content': data['content'] ?? 'No content available',
-            'timestamp': data['timestamp'] ?? Timestamp.now(),
+            'content': data['description'] ?? 'No content available',
+            'imageUrl': data['imageUrl'] ?? '',
+            'timestamp': (data['timestamp'] as Timestamp).toDate(),
           };
         }).toList();
 
@@ -876,249 +898,127 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildRecentUpdateCard() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 2,
-            blurRadius: 15,
-            offset: const Offset(0, 3),
-          ),
-        ],
+    if (_newsUpdates.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('No recent updates'),
+        ),
+      );
+    }
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Categories Tab Bar
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                _buildCategoryTab('News', Icons.article, 0),
-                _buildCategoryTab('Events', Icons.event, 1),
-                _buildCategoryTab('Alerts', Icons.warning, 2),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          // Updates List
-          _selectedUpdateIndex == 0
-              ? _buildNewsList()
-              : _selectedUpdateIndex == 1
-                  ? _buildEventsList()
-                  : _buildAlertsList(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategoryTab(String label, IconData icon, int index) {
-    bool isSelected = _selectedUpdateIndex == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedUpdateIndex = index;
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: isSelected ? Theme.of(context).primaryColor : Colors.transparent,
-                width: 2,
-              ),
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNewsList() {
-    return Column(
-      children: _newsUpdates.map((news) {
-        return _buildUpdateItem(
-          title: news['title'],
-          content: news['content'],
-          timestamp: (news['timestamp'] as Timestamp).toDate(),
-          icon: Icons.article,
-          color: Colors.blue,
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildEventsList() {
-    return Column(
-      children: _events.map((event) {
-        return _buildUpdateItem(
-          title: event['title'],
-          content: '${event['description']}\nLocation: ${event['location']}',
-          timestamp: (event['date'] as Timestamp).toDate(),
-          icon: Icons.event,
-          color: Colors.green,
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildAlertsList() {
-    return Column(
-      children: _emergencyAlerts
-          .where((alert) => alert['isActive'] == true)
-          .map((alert) {
-        return _buildUpdateItem(
-          title: 'Emergency Alert',
-          content: alert['message'],
-          timestamp: (alert['timestamp'] as Timestamp).toDate(),
-          icon: Icons.warning,
-          color: Colors.red,
-          isAlert: true,
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildUpdateItem({
-    required String title,
-    required String content,
-    required DateTime timestamp,
-    required IconData icon,
-    required Color color,
-    bool isAlert = false,
-  }) {
-    String timeAgo = _getTimeAgo(timestamp);
-    
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.grey.withOpacity(0.1),
-            width: 1,
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          SizedBox(
+            height: 400, // Fixed height for the PageView
+            child: PageView.builder(
+              controller: _updateController,
+              onPageChanged: (index) {
+                setState(() {
+                  _selectedUpdateIndex = index;
+                });
+              },
+              itemCount: _newsUpdates.length,
+              itemBuilder: (context, index) {
+                final update = _newsUpdates[index];
+                final imageUrl = update['imageUrl'] as String;
+                
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                    if (imageUrl.isNotEmpty)
+                      Expanded(
+                        flex: 3,
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                          child: imageUrl.startsWith('assets/')
+                            ? Image.asset(
+                                imageUrl,
+                                fit: BoxFit.cover,
+                              )
+                            : Image.network(
+                                imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: Colors.grey[300],
+                                    child: const Icon(Icons.error),
+                                  );
+                                },
+                              ),
+                        ),
                       ),
-                    ),
-                    Text(
-                      timeAgo,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
+                    Expanded(
+                      flex: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              update['title'],
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: Text(
+                                update['content'],
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                                overflow: TextOverflow.fade,
+                              ),
+                            ),
+                            Text(
+                              _getTimeAgo(update['timestamp']),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[500],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
-                ),
-              ),
-              if (isAlert)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'URGENT',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-            ],
+                );
+              },
+            ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            content,
-            style: const TextStyle(fontSize: 14),
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: () {
-                  // Show full content in a dialog
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: Text(title),
-                      content: SingleChildScrollView(
-                        child: Text(content),
+          if (_newsUpdates.length > 1)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (int i = 0; i < _newsUpdates.length; i++)
+                    Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: i == _selectedUpdateIndex
+                            ? Theme.of(context).primaryColor
+                            : Colors.grey[300],
                       ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Close'),
-                        ),
-                      ],
                     ),
-                  );
-                },
-                child: const Text('Read More'),
+                ],
               ),
-              IconButton(
-                icon: const Icon(Icons.share),
-                onPressed: () {
-                  // Implement share functionality
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Sharing...')),
-                  );
-                },
-              ),
-            ],
-          ),
+            ),
         ],
       ),
     );
