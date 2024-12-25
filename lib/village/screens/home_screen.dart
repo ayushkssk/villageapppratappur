@@ -3,13 +3,15 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide CarouselController;
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:flutter_swiper_view/flutter_swiper_view.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
+import 'package:timeago/timeago.dart' as timeago;
+import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import 'package:villageapp/village/auth/providers/auth_provider.dart';
 import 'package:villageapp/village/auth/screens/login_screen.dart';
 import './admin/admin_panel.dart';
@@ -31,7 +33,6 @@ import '../models/event.dart';
 import 'chat_screen.dart';
 import 'events_screen.dart';
 import 'reels_screen.dart';
-import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import './main_screen.dart';
 import 'government_projects/har_ghar_nal_jal.dart';
 
@@ -47,21 +48,22 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
   final FirestoreService _firestoreService = FirestoreService();
-  List<Map<String, dynamic>> _newsUpdates = [];
-  List<Map<String, dynamic>> _events = [];
-  List<Map<String, dynamic>> _emergencyAlerts = [];
-  bool _isLoading = true;
-  Timer? _refreshTimer;
-  Timer? _newsScrollTimer;
-  Timer? _imageSlideTimer;
-  Timer? _updateSlideTimer;
-  int _selectedIndex = 0;  
   final PageController _newsController = PageController(
     viewportFraction: 1.0,
     keepPage: true,
   );
+  final PageController _updateController = PageController();
+
+  List<NewsUpdate> _newsUpdates = [];
+  List<Event> _events = [];
+  List<Map<String, dynamic>> _emergencyAlerts = [];
+  bool _isLoading = true;
+  Timer? _refreshTimer;
+  Timer? _combinedTimer;
+  bool _isDisposed = false;
+  int _selectedIndex = 0;  
   int _currentNewsIndex = 0;
   bool _isNewsScrollPaused = false;
   final List<String> _imageUrls = [
@@ -89,126 +91,84 @@ class _HomeScreenState extends State<HomeScreen> {
     const ReelsScreen(),
   ];
   int _selectedUpdateIndex = 0;
-  final PageController _updateController = PageController();
 
-  void _onItemTapped(int index) {
-    if (_selectedIndex != index) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => _screens[index]),
-      );
-    }
-  }
-
-  void _onItemTappedOld(int index) {
-    if (!widget.showBottomBar) return;
-    
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    switch (index) {
-      case 0:
-        // Already on home
-        break;
-      case 1:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ChatScreen()),
-        );
-        break;
-      case 2:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const EventsScreen()),
-        );
-        break;
-      case 3:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ReelsScreen()),
-        );
-        break;
-    }
-  }
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
-    _startImageSlideTimer();
-    _startUpdateAutoSlide();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    if (!mounted) return;
+    await _loadData();
+    _startCombinedTimer();
+  }
+
+  void _startCombinedTimer() {
+    if (_isDisposed) return;
+    
+    _combinedTimer?.cancel();
+    _refreshTimer?.cancel();
+
+    _combinedTimer = Timer.periodic(const Duration(milliseconds: 3000), (timer) {
+      if (_isDisposed || !mounted) {
+        timer.cancel();
+        return;
+      }
+
+      if (_newsUpdates.isEmpty) return;
+      
+      setState(() {
+        if (_newsController.hasClients && !_isNewsScrollPaused) {
+          final nextNewsPage = (_currentNewsIndex + 1) % _newsUpdates.length;
+          _newsController.animateToPage(
+            nextNewsPage,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          ).catchError((e) => debugPrint('Error animating news page: $e'));
+        }
+
+        if (_updateController.hasClients) {
+          _selectedUpdateIndex = (_selectedUpdateIndex + 1) % _newsUpdates.length;
+          _updateController.animateToPage(
+            _selectedUpdateIndex,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          ).catchError((e) => debugPrint('Error animating update page: $e'));
+        }
+      });
+    });
+
     _refreshTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
+      if (_isDisposed || !mounted) {
+        timer.cancel();
+        return;
+      }
       _loadData();
     });
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-  }
+  void _handleTimerTick() {
+    if (!mounted || _isDisposed) return;
 
-  @override
-  void dispose() {
-    _imageSlideTimer?.cancel();
-    _newsController.dispose();
-    _updateSlideTimer?.cancel();
-    _updateController.dispose();
-    _refreshTimer?.cancel();
-    super.dispose();
-  }
-
-  void _startNewsAutoScroll() {
-    _newsScrollTimer?.cancel();
-    _newsScrollTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (_newsUpdates.isEmpty || _isNewsScrollPaused) return;
-
-      if (_newsController.hasClients) {
-        final nextPage = _currentNewsIndex + 1;
-        
-        if (nextPage >= _newsUpdates.length) {
-          // Jump to start without animation when reaching the end
-          _newsController.jumpToPage(0);
-          _currentNewsIndex = 0;
-        } else {
-          // Animate to next page
-          _newsController.animateToPage(
-            nextPage,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeInOut,
-          );
-        }
+    if (_newsController.hasClients && !_isNewsScrollPaused && _newsUpdates.isNotEmpty) {
+      try {
+        final nextNewsPage = (_currentNewsIndex + 1) % _newsUpdates.length;
+        _newsController.animateToPage(
+          nextNewsPage,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      } catch (e) {
+        debugPrint('Error animating news page: $e');
       }
-    });
-  }
+    }
 
-  void _startImageSlideTimer() {
-    _imageSlideTimer?.cancel();
-    _imageSlideTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (_newsController.hasClients) {
-        if (_currentNewsIndex < _imageUrls.length - 1) {
-          // If not at the last image, go to next image
-          _newsController.animateToPage(
-            _currentNewsIndex + 1,
-            duration: const Duration(milliseconds: 800),
-            curve: Curves.easeInOut,
-          );
-        } else {
-          // If at last image, animate back to first image
-          _newsController.animateToPage(
-            0,
-            duration: const Duration(milliseconds: 800),
-            curve: Curves.easeInOut,
-          );
-        }
-      }
-    });
-  }
-
-  void _startUpdateAutoSlide() {
-    _updateSlideTimer?.cancel();
-    _updateSlideTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      if (_newsUpdates.isNotEmpty && mounted) {
+    if (_updateController.hasClients && _newsUpdates.isNotEmpty) {
+      try {
         setState(() {
           _selectedUpdateIndex = (_selectedUpdateIndex + 1) % _newsUpdates.length;
         });
@@ -217,71 +177,64 @@ class _HomeScreenState extends State<HomeScreen> {
           duration: const Duration(milliseconds: 500),
           curve: Curves.easeInOut,
         );
+      } catch (e) {
+        debugPrint('Error animating update page: $e');
       }
-    });
+    }
   }
 
-  Future<void> _loadData() async {
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _combinedTimer?.cancel();
+    _refreshTimer?.cancel();
+    _newsController.dispose();
+    _updateController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _navigateToScreen(Widget screen) async {
+    if (!mounted) return;
+    
     try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      final newsSnapshot = await _firestoreService.getNewsUpdates().first;
-      final eventsSnapshot = await _firestoreService.getEvents().first;
-      final alertsSnapshot = await _firestoreService.getEmergencyAlerts().first;
-
-      if (!mounted) return;
-
-      setState(() {
-        _newsUpdates = newsSnapshot.docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return {
-            'id': doc.id,
-            'title': data['title'] ?? 'Untitled',
-            'content': data['description'] ?? 'No content available',
-            'imageUrl': data['imageUrl'] ?? '',
-            'timestamp': (data['timestamp'] as Timestamp).toDate(),
-          };
-        }).toList();
-
-        _events = eventsSnapshot.docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return {
-            'id': doc.id,
-            'title': data['title'] ?? 'Untitled Event',
-            'description': data['description'] ?? 'No description available',
-            'date': data['date'] ?? Timestamp.now(),
-            'location': data['location'] ?? 'Location not specified',
-          };
-        }).toList();
-
-        _emergencyAlerts = alertsSnapshot.docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return {
-            'id': doc.id,
-            'message': data['message'] ?? 'Emergency Alert',
-            'timestamp': data['timestamp'] ?? Timestamp.now(),
-            'isActive': data['isActive'] ?? true,
-          };
-        }).toList();
-
-        _notificationCount = _emergencyAlerts.where((alert) => alert['isActive'] == true).length;
-        _isLoading = false;
-      });
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => screen),
+      );
     } catch (e) {
+      debugPrint('Navigation error: $e');
       if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading data: $e')),
+        SnackBar(content: Text('Error navigating: ${e.toString()}')),
+      );
+    }
+  }
+
+  void _onItemTapped(int index) {
+    if (_selectedIndex == index || !mounted) return;
+    
+    try {
+      final screen = _screens[index];
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => screen,
+          transitionDuration: Duration.zero,
+          maintainState: true,
+        ),
+      );
+    } catch (e, stackTrace) {
+      debugPrint('Navigation error: $e\n$stackTrace');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error navigating: ${e.toString()}')),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     final appBar = AppBar(
       title: const Text(
         'Village App',
@@ -319,54 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             IconButton(
               icon: const Icon(Icons.notifications, color: Colors.white),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: Row(
-                      children: [
-                        Icon(Icons.warning, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('Emergency Alerts'),
-                      ],
-                    ),
-                    content: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: _emergencyAlerts.isEmpty
-                            ? [
-                                const Padding(
-                                  padding: EdgeInsets.all(16.0),
-                                  child: Text('No active emergency alerts'),
-                                )
-                              ]
-                            : _emergencyAlerts.map((alert) {
-                                return Card(
-                                  color: Colors.red.shade50,
-                                  child: ListTile(
-                                    leading: const Icon(
-                                      Icons.warning,
-                                      color: Colors.red,
-                                    ),
-                                    title: Text(alert['message']),
-                                    subtitle: Text(
-                                      'Posted: ${(alert['timestamp'] as Timestamp).toDate().toString().split('.')[0]}',
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                      ),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Close'),
-                      ),
-                    ],
-                  ),
-                );
-              },
+              onPressed: _showEmergencyAlertsDialog,
             ),
             if (_notificationCount > 0)
               Positioned(
@@ -789,6 +695,76 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showEmergencyAlertsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red[700]),
+            const SizedBox(width: 8),
+            const Text('Emergency Alerts'),
+          ],
+        ),
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.6,
+            maxWidth: MediaQuery.of(context).size.width * 0.9,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _emergencyAlerts.isEmpty
+                  ? [
+                      const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text(
+                          'No active emergency alerts',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      )
+                    ]
+                  : _emergencyAlerts.map((alert) {
+                      final timestamp = alert['timestamp'] as Timestamp;
+                      return Card(
+                        color: Colors.red.shade50,
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: Icon(
+                            Icons.warning,
+                            color: Colors.red[700],
+                          ),
+                          title: Text(
+                            alert['message'] as String? ?? '',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            'Posted: ${timeago.format(timestamp.toDate())}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.red[700],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBody() {
     final screenWidth = MediaQuery.of(context).size.width;
     final horizontalPadding = screenWidth * 0.04; // 4% of screen width
@@ -974,77 +950,123 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildImageSlider() {
-    return Container(
-      height: 200,
-      child: Stack(
-        children: [
-          PageView.builder(
-            controller: _newsController,
-            itemCount: _imageUrls.length,
-            onPageChanged: (index) {
-              setState(() {
-                _currentNewsIndex = index;
-              });
-            },
-            itemBuilder: (context, index) {
+    return CarouselSlider.builder(
+      options: CarouselOptions(
+        height: 200.0,
+        viewportFraction: 1.0,
+        enlargeCenterPage: false,
+        autoPlay: true,
+        onPageChanged: (index, reason) {
+          if (mounted) {
+            setState(() => _currentNewsIndex = index);
+          }
+        },
+      ),
+      itemCount: _imageUrls.length,
+      itemBuilder: (context, index, realIndex) {
+        return Container(
+          width: MediaQuery.of(context).size.width,
+          decoration: BoxDecoration(
+            color: Colors.grey[200],
+          ),
+          child: Image.asset(
+            _imageUrls[index],
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              debugPrint('Error loading image: $error\n$stackTrace');
               return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.asset(
-                    _imageUrls[index],
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      print('Error loading image: $error');
-                      return Container(
-                        color: Colors.grey[300],
-                        child: Center(
-                          child: Icon(
-                            Icons.image_not_supported,
-                            size: 50,
-                            color: Colors.grey[600],
-                          ),
+                color: Colors.grey[300],
+                child: const Icon(Icons.error),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNotificationSlider(BuildContext context) {
+    if (_emergencyAlerts.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 16),
+      height: 80,
+      child: CarouselSlider(
+        options: CarouselOptions(
+          height: 80,
+          viewportFraction: 0.9,
+          enlargeCenterPage: true,
+          autoPlay: true,
+          autoPlayInterval: const Duration(seconds: 5),
+        ),
+        items: _emergencyAlerts.map((alert) {
+          final Timestamp timestamp = alert['timestamp'] as Timestamp;
+          return Builder(
+            builder: (BuildContext context) {
+              return Container(
+                width: MediaQuery.of(context).size.width,
+                margin: const EdgeInsets.symmetric(horizontal: 5.0),
+                decoration: BoxDecoration(
+                  color: Colors.red[100],
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              alert['message'] as String? ?? '',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              _getTimeAgo(timestamp),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ],
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
                 ),
               );
             },
-          ),
-          Positioned(
-            bottom: 8,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _imageUrls.length,
-                (index) => Container(
-                  width: 8,
-                  height: 8,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _currentNewsIndex == index
-                        ? Theme.of(context).primaryColor
-                        : Colors.grey.withOpacity(0.5),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+          );
+        }).toList(),
       ),
     );
   }
 
   Widget _buildRecentUpdateCard() {
     if (_newsUpdates.isEmpty) {
-      return const Card(
-        child: Padding(
+      return Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Padding(
           padding: EdgeInsets.all(16.0),
-          child: Text('No recent updates'),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.info_outline, color: Colors.grey),
+              SizedBox(width: 8),
+              Text('No recent updates'),
+            ],
+          ),
         ),
       );
     }
@@ -1058,40 +1080,56 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            height: 400, // Fixed height for the PageView
+            height: 400,
             child: PageView.builder(
               controller: _updateController,
               onPageChanged: (index) {
-                setState(() {
-                  _selectedUpdateIndex = index;
-                });
+                if (!mounted || _isDisposed) return;
+                setState(() => _selectedUpdateIndex = index);
               },
               itemCount: _newsUpdates.length,
               itemBuilder: (context, index) {
                 final update = _newsUpdates[index];
-                final imageUrl = update['imageUrl'] as String;
+                final timestamp = Timestamp.fromDate(update.timestamp);
                 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (imageUrl.isNotEmpty)
+                    if (update.imageUrl.isNotEmpty)
                       Expanded(
                         flex: 3,
                         child: ClipRRect(
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                          child: imageUrl.startsWith('assets/')
+                          child: update.imageUrl.startsWith('assets/')
                             ? Image.asset(
-                                imageUrl,
+                                update.imageUrl,
                                 fit: BoxFit.cover,
+                                cacheWidth: MediaQuery.of(context).size.width.toInt(),
+                                cacheHeight: 300,
+                                errorBuilder: (context, error, stackTrace) {
+                                  debugPrint('Error loading asset image: $error');
+                                  return _buildErrorWidget();
+                                },
                               )
                             : Image.network(
-                                imageUrl,
+                                update.imageUrl,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: Colors.grey[300],
-                                    child: const Icon(Icons.error),
+                                cacheWidth: MediaQuery.of(context).size.width.toInt(),
+                                cacheHeight: 300,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      value: loadingProgress.expectedTotalBytes != null
+                                          ? loadingProgress.cumulativeBytesLoaded / 
+                                            loadingProgress.expectedTotalBytes!
+                                          : null,
+                                    ),
                                   );
+                                },
+                                errorBuilder: (context, error, stackTrace) {
+                                  debugPrint('Error loading network image: $error');
+                                  return _buildErrorWidget();
                                 },
                               ),
                         ),
@@ -1104,7 +1142,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              update['title'],
+                              update.title,
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -1115,7 +1153,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             const SizedBox(height: 8),
                             Expanded(
                               child: Text(
-                                update['content'],
+                                update.description,
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey[600],
@@ -1124,11 +1162,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                             Text(
-                              _getTimeAgo(update['timestamp']),
-                              style: TextStyle(
+                              _getTimeAgo(timestamp),
+                              style: const TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey[500],
-                                fontStyle: FontStyle.italic,
+                                color: Colors.grey,
                               ),
                             ),
                           ],
@@ -1140,168 +1177,75 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
           ),
-          if (_newsUpdates.length > 1)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (int i = 0; i < _newsUpdates.length; i++)
-                    Container(
-                      width: 8,
-                      height: 8,
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: i == _selectedUpdateIndex
-                            ? Theme.of(context).primaryColor
-                            : Colors.grey[300],
-                      ),
-                    ),
-                ],
-              ),
-            ),
         ],
       ),
     );
   }
 
-  String _getTimeAgo(DateTime dateTime) {
-    final difference = DateTime.now().difference(dateTime);
-    
-    if (difference.inDays > 365) {
-      return '${(difference.inDays / 365).floor()} year(s) ago';
-    } else if (difference.inDays > 30) {
-      return '${(difference.inDays / 30).floor()} month(s) ago';
-    } else if (difference.inDays > 0) {
-      return '${difference.inDays} day(s) ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} hour(s) ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} minute(s) ago';
-    } else {
-      return 'Just now';
-    }
-  }
-
-  Widget _buildNotificationSlider(BuildContext context) {
-    final List<Map<String, dynamic>> notifications = [
-      {
-        'icon': '''<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 15.5C11.7167 15.5 11.4793 15.404 11.288 15.212C11.096 15.0207 11 14.7833 11 14.5V9.5C11 9.21667 11.096 8.979 11.288 8.787C11.4793 8.59567 11.7167 8.5 12 8.5C12.2833 8.5 12.521 8.59567 12.713 8.787C12.9043 8.979 13 9.21667 13 9.5V14.5C13 14.7833 12.9043 15.0207 12.713 15.212C12.521 15.404 12.2833 15.5 12 15.5ZM12 18.5C11.7167 18.5 11.4793 18.404 11.288 18.212C11.096 18.0207 11 17.7833 11 17.5C11 17.2167 11.096 16.979 11.288 16.787C11.4793 16.5957 11.7167 16.5 12 16.5C12.2833 16.5 12.521 16.5957 12.713 16.787C12.9043 16.979 13 17.2167 13 17.5C13 17.7833 12.9043 18.0207 12.713 18.212C12.521 18.404 12.2833 18.5 12 18.5ZM12 22.5C10.6833 22.5 9.446 22.2373 8.288 21.712C7.12933 21.1873 6.125 20.475 5.275 19.575C4.425 18.675 3.77067 17.6457 3.312 16.487C2.854 15.329 2.625 14.0917 2.625 12.775C2.625 11.4583 2.854 10.221 3.312 9.063C3.77067 7.90433 4.425 6.875 5.275 5.975C6.125 5.075 7.12933 4.36267 8.288 3.838C9.446 3.31267 10.6833 3.05 12 3.05C13.3167 3.05 14.5543 3.31267 15.713 3.838C16.871 4.36267 17.875 5.075 18.725 5.975C19.575 6.875 20.229 7.90433 20.687 9.063C21.1457 10.221 21.375 11.4583 21.375 12.775C21.375 14.0917 21.1457 15.329 20.687 16.487C20.229 17.6457 19.575 18.675 18.725 19.575C17.875 20.475 16.871 21.1873 15.713 21.712C14.5543 22.2373 13.3167 22.5 12 22.5ZM12 20.5C14.2333 20.5 16.125 19.725 17.675 18.175C19.225 16.625 20 14.7333 20 12.5C20 10.2667 19.225 8.375 17.675 6.825C16.125 5.275 14.2333 4.5 12 4.5C9.76667 4.5 7.875 5.275 6.325 6.825C4.775 8.375 4 10.2667 4 12.5C4 14.7333 4.775 16.625 6.325 18.175C7.875 19.725 9.76667 20.5 12 20.5Z" fill="#2196F3"/>
-        </svg>''',
-        'title': 'हर घर नल का जल',
-        'description': 'अपने जिले के नियंत्रण कक्ष और अभियंता से संपर्क करें',
-      },
-    ];
-
+  Widget _buildErrorWidget() {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      height: 80,
-      child: Swiper(
-        itemBuilder: (BuildContext context, int index) {
-          final notification = notifications[index];
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const HarGharNalJal()),
-              );
-            },
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blue.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        SvgPicture.string(
-                          notification['icon'],
-                          width: 32,
-                          height: 32,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                notification['title'],
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                notification['description'],
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(
-                          Icons.arrow_forward_ios,
-                          size: 16,
-                          color: Colors.blue,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.only(
-                          topRight: Radius.circular(12),
-                          bottomLeft: Radius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'NEW',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+      color: Colors.grey[300],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 40,
+            color: Colors.grey[600],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Failed to load image',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 12,
             ),
-          );
-        },
-        itemCount: notifications.length,
-        autoplay: true,
-        autoplayDelay: 5000,
-        duration: 800,
-        scale: 0.9,
-        viewportFraction: 0.93,
+          ),
+        ],
       ),
     );
+  }
+
+  String _getTimeAgo(Timestamp timestamp) {
+    return timeago.format(timestamp.toDate());
+  }
+
+  Future<void> _loadData() async {
+    if (!mounted) return;
+    
+    try {
+      setState(() => _isLoading = true);
+
+      final alerts = await _firestoreService.getEmergencyAlerts();
+      final news = await _firestoreService.getNewsUpdates();
+      final events = await _firestoreService.getEvents();
+
+      if (!mounted) return;
+
+      setState(() {
+        _emergencyAlerts = alerts.map((alert) => {
+          'message': alert.message,
+          'timestamp': alert.timestamp,
+          'severity': alert.severity,
+          'id': alert.id,
+          'isActive': alert.isActive,
+        }).toList();
+
+        _newsUpdates = news;
+        _events = events;
+        _notificationCount = alerts.length;
+      });
+    } catch (e, stackTrace) {
+      debugPrint('Error loading data: $e\n$stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load data: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 }
