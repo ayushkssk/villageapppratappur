@@ -601,35 +601,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.red.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: FloatingActionButton.extended(
-          backgroundColor: Colors.red,
-          icon: const Icon(Icons.emergency, color: Colors.white),
-          label: const Text(
-            'Emergency',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const EmergencyServices()),
-            );
-          },
-        ),
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -706,6 +677,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _buildQuickAccessItem(
+                      icon: Icons.info,
+                      label: 'About\nVillage',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AboutVillage(),
+                        ),
+                      ),
+                    ),
+                    _buildQuickAccessItem(
                       icon: Icons.photo_library,
                       label: 'Photo\nGallery',
                       onTap: () => Navigator.push(
@@ -725,6 +706,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
                     _buildQuickAccessItem(
                       icon: Icons.contact_phone,
                       label: 'Important\nContacts',
@@ -732,6 +719,27 @@ class _HomeScreenState extends State<HomeScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (_) => const ImportantContacts(),
+                        ),
+                      ),
+                    ),
+                    _buildQuickAccessItem(
+                      icon: Icons.emergency,
+                      label: 'Emergency\nServices',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const EmergencyServices(),
+                        ),
+                      ),
+                      color: Colors.red,
+                    ),
+                    _buildQuickAccessItem(
+                      icon: Icons.report_problem,
+                      label: 'Grievance\nPortal',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const GrievancePortal(),
                         ),
                       ),
                     ),
@@ -766,6 +774,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    Color color = Colors.green,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -773,7 +782,7 @@ class _HomeScreenState extends State<HomeScreen> {
         width: 100,
         height: 100,
         decoration: BoxDecoration(
-          color: Colors.green.withOpacity(0.1),
+          color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(15),
         ),
         child: Column(
@@ -782,15 +791,15 @@ class _HomeScreenState extends State<HomeScreen> {
             Icon(
               icon,
               size: 32,
-              color: Colors.green,
+              color: color,
             ),
             const SizedBox(height: 8),
             Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: Colors.green,
+                color: color,
               ),
             ),
           ],
