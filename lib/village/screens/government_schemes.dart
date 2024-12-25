@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'government_projects/har_ghar_nal_jal.dart'; // Added import for the new page
 
 class GovernmentSchemes extends StatefulWidget {
   const GovernmentSchemes({super.key});
@@ -21,6 +22,31 @@ class _GovernmentSchemesState extends State<GovernmentSchemes> {
   @override
   Widget build(BuildContext context) {
     final List<Map<String, dynamic>> schemes = [
+      {
+        'title': 'हर घर नल का जल',
+        'description': 'जल आपूर्ति योजना',
+        'details': '''
+• मुख्य उद्देश्य:
+  - हर घर में नल का कनेक्शन
+  - स्वच्छ पेयजल की आपूर्ति
+• सुविधाएं:
+  - 24x7 जल आपूर्ति
+  - शिकायत निवारण सिस्टम
+  - टोल फ्री हेल्पलाइन
+• संपर्क:
+  - जिला नियंत्रण कक्ष
+  - कार्यपालक अभियंता
+  - टोल फ्री: 18001231121''',
+        'url': 'http://www.phedcgrc.in',
+        'icon': Icons.water_drop,
+        'color': Colors.blue,
+        'onTap': () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const HarGharNalJal(),
+          ),
+        ),
+      },
       {
         'title': 'प्रधानमंत्री किसान सम्मान निधि',
         'description': 'किसानों को वित्तीय सहायता',
@@ -189,7 +215,9 @@ class _GovernmentSchemesState extends State<GovernmentSchemes> {
                           const SizedBox(height: 16),
                           Center(
                             child: ElevatedButton.icon(
-                              onPressed: () => _launchURL(scheme['url'] as String),
+                              onPressed: scheme['onTap'] != null
+                                  ? scheme['onTap'] as void Function()?
+                                  : () => _launchURL(scheme['url'] as String),
                               icon: const Icon(Icons.launch),
                               label: const Text('अधिक जानकारी'),
                               style: ElevatedButton.styleFrom(
