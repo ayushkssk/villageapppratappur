@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:villageapp/village/auth/providers/auth_provider.dart';
 import 'package:villageapp/village/auth/screens/login_screen.dart';
-import './admin/admin_panel.dart';
+import './admin/admin_screen.dart';
 import './about_village.dart';
 import './emergency_services.dart';
 import './government_schemes.dart';
@@ -265,7 +265,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const AdminPanel(),
+                  builder: (context) => const AdminScreen(),
                 ),
               );
             },
