@@ -479,7 +479,7 @@ class _AdminPanelState extends State<AdminPanel> with SingleTickerProviderStateM
                 counterText: '',
               ),
             ),
-            if (_pinController.text.length == 4 && _pinController.text != '0471')
+            if (_pinController.text.length == 4 && _pinController.text != '0000')
               const Padding(
                 padding: EdgeInsets.only(top: 8.0),
                 child: Text(
