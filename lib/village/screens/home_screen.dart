@@ -1,16 +1,24 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:convert';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_swiper_view/flutter_swiper_view.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:villageapp/village/auth/providers/auth_provider.dart';
 import 'package:villageapp/village/auth/screens/login_screen.dart';
-import 'package:url_launcher/url_launcher.dart';
 import './admin/admin_panel.dart';
 import './about_village.dart';
 import './emergency_services.dart';
 import './government_schemes.dart';
 import './grievance_portal.dart';
 import './important_contacts.dart';
+import './important_helplines.dart';
 import './notifications.dart';
 import './photo_gallery_home.dart';
 import './photo_gallery_screen.dart';
@@ -20,12 +28,12 @@ import './middle_school/middle_school_screen.dart';
 import '../services/firestore_service.dart';
 import '../models/news_update.dart';
 import '../models/event.dart';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'chat_screen.dart';
 import 'events_screen.dart';
 import 'reels_screen.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import './main_screen.dart';
+import 'government_projects/har_ghar_nal_jal.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool showBottomBar;
@@ -574,21 +582,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.report_problem_outlined, size: 28),
-                      title: const Text(
-                        'Grievance Portal',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const GrievancePortal(),
-                          ),
-                        );
-                      },
-                    ),
-                    ListTile(
                       leading: const Icon(Icons.star_outline, size: 28),
                       title: const Text(
                         'Talent Corner',
@@ -797,13 +790,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBody() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final horizontalPadding = screenWidth * 0.04; // 4% of screen width
+    
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildImageSlider(),
+          _buildNotificationSlider(context),
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(horizontalPadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -814,7 +811,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: horizontalPadding),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -848,12 +845,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
                     _buildQuickAccessItem(
                       icon: Icons.contact_phone,
                       label: 'Important\nContacts',
@@ -864,6 +855,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
+                  ],
+                ),
+                SizedBox(height: horizontalPadding),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
                     _buildQuickAccessItem(
                       icon: Icons.emergency,
                       label: 'Emergency\nServices',
@@ -876,12 +873,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: Colors.red,
                     ),
                     _buildQuickAccessItem(
-                      icon: Icons.report_problem,
-                      label: 'Grievance\nPortal',
+                      icon: Icons.phone_in_talk,
+                      label: 'Helpline\nNumbers',
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const GrievancePortal(),
+                          builder: (_) => const ImportantHelplines(),
+                        ),
+                      ),
+                      color: Colors.indigo,
+                    ),
+                    _buildQuickAccessItem(
+                      icon: Icons.school,
+                      label: 'Education',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const MiddleSchoolScreen(),
+                        ),
+                      ),
+                    ),
+                    _buildQuickAccessItem(
+                      icon: Icons.star,
+                      label: 'Talent\nCorner',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const TalentCorner(),
                         ),
                       ),
                     ),
@@ -891,7 +909,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(horizontalPadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -902,7 +920,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: horizontalPadding),
                 _buildRecentUpdateCard(),
               ],
             ),
@@ -918,11 +936,15 @@ class _HomeScreenState extends State<HomeScreen> {
     required VoidCallback onTap,
     Color color = Colors.green,
   }) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final itemWidth = (screenWidth - 48) / 4; // 48 is total horizontal padding (16 * 3)
+    
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 100,
-        height: 100,
+        width: itemWidth,
+        height: itemWidth,
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(15),
@@ -932,16 +954,17 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Icon(
               icon,
-              size: 32,
+              size: itemWidth * 0.3, // Proportional icon size
               color: color,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Text(
               label,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: itemWidth * 0.11, // Proportional text size
                 color: color,
+                height: 1.2,
               ),
             ),
           ],
@@ -1159,5 +1182,126 @@ class _HomeScreenState extends State<HomeScreen> {
     } else {
       return 'Just now';
     }
+  }
+
+  Widget _buildNotificationSlider(BuildContext context) {
+    final List<Map<String, dynamic>> notifications = [
+      {
+        'icon': '''<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 15.5C11.7167 15.5 11.4793 15.404 11.288 15.212C11.096 15.0207 11 14.7833 11 14.5V9.5C11 9.21667 11.096 8.979 11.288 8.787C11.4793 8.59567 11.7167 8.5 12 8.5C12.2833 8.5 12.521 8.59567 12.713 8.787C12.9043 8.979 13 9.21667 13 9.5V14.5C13 14.7833 12.9043 15.0207 12.713 15.212C12.521 15.404 12.2833 15.5 12 15.5ZM12 18.5C11.7167 18.5 11.4793 18.404 11.288 18.212C11.096 18.0207 11 17.7833 11 17.5C11 17.2167 11.096 16.979 11.288 16.787C11.4793 16.5957 11.7167 16.5 12 16.5C12.2833 16.5 12.521 16.5957 12.713 16.787C12.9043 16.979 13 17.2167 13 17.5C13 17.7833 12.9043 18.0207 12.713 18.212C12.521 18.404 12.2833 18.5 12 18.5ZM12 22.5C10.6833 22.5 9.446 22.2373 8.288 21.712C7.12933 21.1873 6.125 20.475 5.275 19.575C4.425 18.675 3.77067 17.6457 3.312 16.487C2.854 15.329 2.625 14.0917 2.625 12.775C2.625 11.4583 2.854 10.221 3.312 9.063C3.77067 7.90433 4.425 6.875 5.275 5.975C6.125 5.075 7.12933 4.36267 8.288 3.838C9.446 3.31267 10.6833 3.05 12 3.05C13.3167 3.05 14.5543 3.31267 15.713 3.838C16.871 4.36267 17.875 5.075 18.725 5.975C19.575 6.875 20.229 7.90433 20.687 9.063C21.1457 10.221 21.375 11.4583 21.375 12.775C21.375 14.0917 21.1457 15.329 20.687 16.487C20.229 17.6457 19.575 18.675 18.725 19.575C17.875 20.475 16.871 21.1873 15.713 21.712C14.5543 22.2373 13.3167 22.5 12 22.5ZM12 20.5C14.2333 20.5 16.125 19.725 17.675 18.175C19.225 16.625 20 14.7333 20 12.5C20 10.2667 19.225 8.375 17.675 6.825C16.125 5.275 14.2333 4.5 12 4.5C9.76667 4.5 7.875 5.275 6.325 6.825C4.775 8.375 4 10.2667 4 12.5C4 14.7333 4.775 16.625 6.325 18.175C7.875 19.725 9.76667 20.5 12 20.5Z" fill="#2196F3"/>
+        </svg>''',
+        'title': 'हर घर नल का जल',
+        'description': 'अपने जिले के नियंत्रण कक्ष और अभियंता से संपर्क करें',
+      },
+    ];
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      height: 80,
+      child: Swiper(
+        itemBuilder: (BuildContext context, int index) {
+          final notification = notifications[index];
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const HarGharNalJal()),
+              );
+            },
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        SvgPicture.string(
+                          notification['icon'],
+                          width: 32,
+                          height: 32,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                notification['title'],
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                notification['description'],
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.arrow_forward_ios,
+                          size: 16,
+                          color: Colors.blue,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.only(
+                          topRight: Radius.circular(12),
+                          bottomLeft: Radius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'NEW',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+        itemCount: notifications.length,
+        autoplay: true,
+        autoplayDelay: 5000,
+        duration: 800,
+        scale: 0.9,
+        viewportFraction: 0.93,
+      ),
+    );
   }
 }

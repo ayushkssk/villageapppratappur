@@ -122,7 +122,7 @@ class _AboutVillageState extends State<AboutVillage> {
                     _buildInfoRow('Assembly Constituency', 'Sandesh'),
                     _buildInfoRow('Assembly MLA', 'Kiran Devi'),
                     _buildInfoRow('Lok Sabha Constituency', 'Arrah'),
-                    _buildInfoRow('Parliament MP', 'R. K. Singh'),
+                    _buildInfoRow('Parliament MP', 'Sudama Parsad'),
                     _buildInfoRow('Major Parties', 'JD(U), BJP, LJP, RJD'),
                   ]),
 
