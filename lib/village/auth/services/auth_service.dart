@@ -1,29 +1,38 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-  // Get current user
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
 
-  // Stream of auth changes
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
-
-  // Email/Password Sign Up
   Future<UserCredential> signUpWithEmail(String email, String password) async {
     try {
-      return await _auth.createUserWithEmailAndPassword(
+      final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      if (userCredential.user != null) {
+        await _firestore.collection('users').doc(userCredential.user!.uid).set({
+          'uid': userCredential.user!.uid,
+          'email': email,
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastUpdated': FieldValue.serverTimestamp(),
+        });
+      }
+
+      return userCredential;
     } catch (e) {
-      throw _handleAuthException(e);
+      print('Error in signUpWithEmail: $e');
+      rethrow;
     }
   }
 
-  // Email/Password Sign In
   Future<UserCredential> signInWithEmail(String email, String password) async {
     try {
       return await _auth.signInWithEmailAndPassword(
@@ -31,20 +40,15 @@ class AuthService {
         password: password,
       );
     } catch (e) {
-      throw _handleAuthException(e);
+      print('Error in signInWithEmail: $e');
+      rethrow;
     }
   }
 
-  // Google Sign In
   Future<UserCredential> signInWithGoogle() async {
     try {
-      // Try to sign out first to force account selection
-      try {
-        await _googleSignIn.signOut();
-      } catch (_) {}
-
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) throw 'Google sign in aborted';
+      if (googleUser == null) throw Exception('Google Sign In was cancelled');
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
@@ -52,13 +56,25 @@ class AuthService {
         idToken: googleAuth.idToken,
       );
 
-      return await _auth.signInWithCredential(credential);
+      final userCredential = await _auth.signInWithCredential(credential);
+
+      if (userCredential.user != null) {
+        await _firestore.collection('users').doc(userCredential.user!.uid).set({
+          'uid': userCredential.user!.uid,
+          'email': userCredential.user!.email,
+          'displayName': userCredential.user!.displayName,
+          'photoURL': userCredential.user!.photoURL,
+          'lastUpdated': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+
+      return userCredential;
     } catch (e) {
-      throw _handleAuthException(e);
+      print('Error in signInWithGoogle: $e');
+      rethrow;
     }
   }
 
-  // Sign Out
   Future<void> signOut() async {
     try {
       await Future.wait([
@@ -66,39 +82,62 @@ class AuthService {
         _googleSignIn.signOut(),
       ]);
     } catch (e) {
-      throw _handleAuthException(e);
+      print('Error in signOut: $e');
+      rethrow;
     }
   }
 
-  // Password Reset
   Future<void> resetPassword(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
     } catch (e) {
-      throw _handleAuthException(e);
+      print('Error in resetPassword: $e');
+      rethrow;
     }
   }
 
-  // Handle Firebase Auth Exceptions
-  String _handleAuthException(dynamic e) {
-    if (e is FirebaseAuthException) {
-      switch (e.code) {
-        case 'user-not-found':
-          return 'No user found with this email.';
-        case 'wrong-password':
-          return 'Wrong password provided.';
-        case 'email-already-in-use':
-          return 'Email is already registered.';
-        case 'invalid-email':
-          return 'Invalid email address.';
-        case 'weak-password':
-          return 'Password is too weak.';
-        case 'operation-not-allowed':
-          return 'This authentication method is not enabled.';
-        default:
-          return 'Authentication failed. Please try again.';
+  Future<void> updateUserProfile(String displayName) async {
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        // First update Firebase Auth
+        await user.updateDisplayName(displayName);
+
+        // Get current user data
+        final userRef = _firestore.collection('users').doc(user.uid);
+        final userDoc = await userRef.get();
+        
+        // Get old name for history
+        String oldName = 'Not Set';
+        if (userDoc.exists) {
+          final data = userDoc.data();
+          if (data != null && data['displayName'] != null) {
+            oldName = data['displayName'].toString();
+          }
+        }
+
+        // Update Firestore user profile
+        await userRef.set({
+          'displayName': displayName,
+          'lastUpdated': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        // Add update to history
+        await _firestore.collection('profile_updates').add({
+          'userId': user.uid,
+          'oldName': oldName,
+          'newName': displayName,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        // Refresh the user
+        await user.reload();
+      } else {
+        throw Exception('No user is currently logged in');
       }
+    } catch (e) {
+      print('Error in updateUserProfile: $e');
+      throw Exception('Failed to update profile: $e');
     }
-    return e.toString();
   }
 }

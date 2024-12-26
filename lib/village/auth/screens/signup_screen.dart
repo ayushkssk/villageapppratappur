@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
+import '../providers/auth_provider.dart' show VillageAuthProvider;
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -17,6 +17,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -31,23 +32,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (_formKey.currentState?.validate() ?? false) {
       if (_passwordController.text != _confirmPasswordController.text) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Passwords do not match')),
+          const SnackBar(
+            content: Text('Passwords do not match'),
+            backgroundColor: Colors.red,
+          ),
         );
         return;
       }
 
+      setState(() => _isLoading = true);
       try {
-        await context.read<AuthProvider>().signUpWithEmail(
+        await context.read<VillageAuthProvider>().signUpWithEmail(
           _emailController.text.trim(),
           _passwordController.text,
         );
-        if (!mounted) return;
-        Navigator.pop(context); // Go back to login screen
+        // Don't navigate here - let the StreamBuilder in main.dart handle it
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(
+            content: Text('Sign up failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }

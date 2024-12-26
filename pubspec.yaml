@@ -9,8 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_swiper_view: ^1.1.8
   cupertino_icons: ^1.0.2
+  restart_app: ^1.2.1
+  flutter_swiper_view: ^1.1.8
   url_launcher: ^6.1.14
   font_awesome_flutter: ^10.6.0
   video_player: ^2.8.1
@@ -50,21 +51,25 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.1
+  flutter_lints: ^2.0.0
   flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
   assets:
+    - assets/
+    - assets/animations/
     - assets/images/
-    - assets/images/middle_school/
     - assets/images/creators/
-    - assets/images/festivals/
     - assets/images/functions/
-    - assets/images/logos/
     - assets/images/others/
+    - assets/images/middle_school/
+    - assets/images/festivals/
+    - assets/images/logos/
     - assets/images/schools/
     - assets/images/streets/
     - assets/images/temples/
+    - assets/images/village_logo.png
+    - assets/images/village_pattern.svg
     - assets/icons/
-    - assets/animations/
+    - assets/icons/google_logo.svg
