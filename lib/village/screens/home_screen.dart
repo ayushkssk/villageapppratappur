@@ -10,7 +10,7 @@ import 'package:flutter_swiper_view/flutter_swiper_view.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:villageapp/village/auth/providers/auth_provider.dart';
+import 'package:villageapp/village/auth/providers/auth_provider.dart' show VillageAuthProvider;
 import 'package:villageapp/village/auth/screens/login_screen.dart';
 import './admin/admin_panel.dart';
 import './about_village.dart';
@@ -28,6 +28,7 @@ import './middle_school/middle_school_screen.dart';
 import '../services/firestore_service.dart';
 import '../models/news_update.dart';
 import '../models/event.dart';
+import '../models/emergency_alert.dart';
 import 'chat_screen.dart';
 import 'events_screen.dart';
 import 'reels_screen.dart';
@@ -90,6 +91,9 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
   int _selectedUpdateIndex = 0;
   final PageController _updateController = PageController();
+  bool _profileUpdateLoading = false;
+  EmergencyAlert? _latestAlert;
+  bool _isLoadingAlert = false;
 
   void _onItemTapped(int index) {
     if (_selectedIndex != index) {
@@ -141,6 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _refreshTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
       _loadData();
     });
+    _loadLatestAlert();
   }
 
   @override
@@ -280,183 +285,463 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final appBar = AppBar(
-      title: const Text(
-        'Village App',
-        style: TextStyle(color: Colors.white),
-      ),
-      backgroundColor: Theme.of(context).primaryColor,
-      actions: [
-        // Admin Button
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AdminPanel(),
-                ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.admin_panel_settings,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ),
-        // Notification Bell
-        Stack(
+  Future<void> _loadLatestAlert() async {
+    setState(() => _isLoadingAlert = true);
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('emergency_alerts')
+          .where('isActive', isEqualTo: true)
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        setState(() {
+          _latestAlert = EmergencyAlert.fromMap(
+            snapshot.docs.first.data(),
+            snapshot.docs.first.id,
+          );
+        });
+      }
+    } catch (e) {
+      print('Error loading emergency alert: $e');
+    } finally {
+      setState(() => _isLoadingAlert = false);
+    }
+  }
+
+  void _showAlertDialog() {
+    if (_latestAlert == null) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
           children: [
-            IconButton(
-              icon: const Icon(Icons.notifications, color: Colors.white),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: Row(
-                      children: [
-                        Icon(Icons.warning, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('Emergency Alerts'),
-                      ],
-                    ),
-                    content: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: _emergencyAlerts.isEmpty
-                            ? [
-                                const Padding(
-                                  padding: EdgeInsets.all(16.0),
-                                  child: Text('No active emergency alerts'),
-                                )
-                              ]
-                            : _emergencyAlerts.map((alert) {
-                                return Card(
-                                  color: Colors.red.shade50,
-                                  child: ListTile(
-                                    leading: const Icon(
-                                      Icons.warning,
-                                      color: Colors.red,
-                                    ),
-                                    title: Text(alert['message']),
-                                    subtitle: Text(
-                                      'Posted: ${(alert['timestamp'] as Timestamp).toDate().toString().split('.')[0]}',
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                      ),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Close'),
-                      ),
-                    ],
-                  ),
-                );
-              },
+            Icon(
+              Icons.warning,
+              color: _latestAlert!.severity == 'high' 
+                ? Colors.red 
+                : _latestAlert!.severity == 'medium' 
+                  ? Colors.orange 
+                  : Colors.yellow,
             ),
-            if (_notificationCount > 0)
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 20,
-                    minHeight: 20,
-                  ),
-                  child: Text(
-                    '$_notificationCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
+            const SizedBox(width: 8),
+            const Text('Emergency Alert'),
           ],
         ),
-        // Logout Button
-        IconButton(
-          icon: const Icon(
-            Icons.logout,
-            color: Colors.white,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_latestAlert!.message),
+            const SizedBox(height: 8),
+            Text(
+              'Posted: ${_latestAlert!.timestamp.toDate().toString()}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
           ),
-          tooltip: 'Logout',
-          onPressed: () async {
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Logout'),
-                content: const Text('Are you sure you want to logout?'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      Navigator.pop(context);
-                      showDialog(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (context) => const Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                      );
-                      
-                      try {
-                        await context.read<AuthProvider>().signOut();
-                        if (!mounted) return;
-                        Navigator.pop(context); // Close loading dialog
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const LoginScreen(),
-                          ),
-                          (route) => false,
-                        );
-                      } catch (e) {
-                        if (!mounted) return;
-                        Navigator.pop(context); // Close loading dialog
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(e.toString())),
-                        );
-                      }
-                    },
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserProfileCard() {
+    return Consumer<VillageAuthProvider>(
+      builder: (context, authProvider, _) {
+        final user = authProvider.user;
+        if (user == null) return const SizedBox.shrink();
+
+        return Container(
+          margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.green.shade200),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.green.shade100,
+                ),
+                child: Center(
+                  child: Text(
+                    user.displayName?.isNotEmpty == true
+                        ? user.displayName![0].toUpperCase()
+                        : user.email[0].toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade700,
                     ),
-                    child: const Text('Logout'),
                   ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.displayName ?? 'Set Name',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      user.email,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                color: Colors.green.shade700,
+                onPressed: () => _showEditProfileDialog(context, user.displayName),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showEditProfileDialog(BuildContext context, String? currentName) async {
+    final TextEditingController nameController = TextEditingController(text: currentName);
+    final formKey = GlobalKey<FormState>();
+    
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setDialogState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.person_outline, color: Theme.of(context).primaryColor),
+                  const SizedBox(width: 8),
+                  const Text('Edit Profile'),
                 ],
               ),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameController,
+                      enabled: !_profileUpdateLoading,
+                      decoration: InputDecoration(
+                        labelText: 'Display Name',
+                        hintText: 'Enter your name',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.person),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter your name';
+                        }
+                        if (value.trim().length < 2) {
+                          return 'Name must be at least 2 characters';
+                        }
+                        return null;
+                      },
+                      textCapitalization: TextCapitalization.words,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) {
+                        if (!_profileUpdateLoading) {
+                          _saveProfile(context, formKey, nameController, setDialogState);
+                        }
+                      },
+                    ),
+                    if (_profileUpdateLoading) ...[
+                      const SizedBox(height: 16),
+                      const Center(child: CircularProgressIndicator()),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: _profileUpdateLoading ? null : () => Navigator.pop(context),
+                  child: Text(
+                    'CANCEL',
+                    style: TextStyle(
+                      color: _profileUpdateLoading ? Colors.grey.shade400 : Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
+                  onPressed: _profileUpdateLoading
+                      ? null
+                      : () => _saveProfile(context, formKey, nameController, setDialogState),
+                  child: Text(_profileUpdateLoading ? 'SAVING...' : 'SAVE'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _saveProfile(
+    BuildContext context,
+    GlobalKey<FormState> formKey,
+    TextEditingController nameController,
+    StateSetter setDialogState,
+  ) async {
+    if (formKey.currentState?.validate() ?? false) {
+      setState(() => _profileUpdateLoading = true);
+      setDialogState(() {});
+      
+      try {
+        final authProvider = Provider.of<VillageAuthProvider>(context, listen: false);
+        await authProvider.updateUserProfile(nameController.text.trim());
+        
+        if (mounted) {
+          setState(() => _profileUpdateLoading = false);
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Profile updated successfully',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        setState(() => _profileUpdateLoading = false);
+        setDialogState(() {});
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Failed to update profile: ${e.toString()}',
+                style: const TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authProvider = Provider.of<VillageAuthProvider>(context);
+    final user = authProvider.user;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: LayoutBuilder(
+          builder: (context, constraints) {
+            final screenWidth = MediaQuery.of(context).size.width;
+            final maxWidth = constraints.maxWidth;
+            final isSmallScreen = screenWidth < 360;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Village App',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (user != null)
+                  Container(
+                    width: maxWidth,
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            user.displayName ?? user.email,
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 12 : 14,
+                              color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (authProvider.isOfflineMode) ...[
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isSmallScreen ? 4 : 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[800],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.offline_bolt,
+                                  size: isSmallScreen ? 12 : 14,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  isSmallScreen ? 'Offline' : 'Offline Mode',
+                                  style: TextStyle(
+                                    fontSize: isSmallScreen ? 10 : 12,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+              ],
             );
           },
         ),
-      ],
-    );
-
-    return Scaffold(
-      appBar: appBar,
+        actions: [
+          if (user != null) ...[
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () => _showEditProfileDialog(context, user.displayName),
+              tooltip: 'Edit Profile',
+            ),
+            if (_latestAlert != null)
+              IconButton(
+                icon: Stack(
+                  children: [
+                    const Icon(Icons.notifications),
+                    if (_latestAlert!.severity == 'high')
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 8,
+                            minHeight: 8,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                onPressed: _showAlertDialog,
+                tooltip: 'Emergency Alert',
+              ),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              onSelected: (value) async {
+                switch (value) {
+                  case 'admin_panel':
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminPanel(),
+                      ),
+                    );
+                    break;
+                  case 'logout':
+                    try {
+                      await authProvider.signOut();
+                      if (!mounted) return;
+                      // Clear navigation stack and go to login
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                          builder: (context) => const LoginScreen(),
+                        ),
+                        (route) => false,
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error signing out: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                    break;
+                }
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(
+                  value: 'admin_panel',
+                  child: Row(
+                    children: [
+                      Icon(Icons.admin_panel_settings, size: 20),
+                      SizedBox(width: 8),
+                      Text('Admin Panel'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout, size: 20),
+                      SizedBox(width: 8),
+                      Text('Logout'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+        elevation: 2,
+        backgroundColor: Theme.of(context).primaryColor,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+      ),
       drawer: Drawer(
         child: Column(
           children: [
@@ -740,193 +1025,192 @@ class _HomeScreenState extends State<HomeScreen> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadData,
-              child: _buildBody(),
-            ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
-            child: BottomNavigationBar(
-              elevation: 0,
-              backgroundColor: Colors.transparent,
-              type: BottomNavigationBarType.fixed,
-              items: const <BottomNavigationBarItem>[
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.home),
-                  label: 'Home',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.chat),
-                  label: 'Chat',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.event),
-                  label: 'Events',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.video_collection),
-                  label: 'Reels',
-                ),
-              ],
-              currentIndex: _selectedIndex,
-              selectedItemColor: Theme.of(context).primaryColor,
-              unselectedItemColor: Colors.grey,
-              onTap: _onItemTapped,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBody() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final horizontalPadding = screenWidth * 0.04; // 4% of screen width
-    
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildImageSlider(),
-          _buildNotificationSlider(context),
-          Padding(
-            padding: EdgeInsets.all(horizontalPadding),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Quick Access',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: horizontalPadding),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildQuickAccessItem(
-                      icon: Icons.info,
-                      label: 'About\nVillage',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AboutVillage(),
-                        ),
+                    if (_imageUrls.isNotEmpty) _buildImageSlider(),
+                    _buildNotificationSlider(context),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Quick Access',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildQuickAccessItem(
+                                icon: Icons.info,
+                                label: 'About\nVillage',
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const AboutVillage(),
+                                  ),
+                                ),
+                              ),
+                              _buildQuickAccessItem(
+                                icon: Icons.photo_library,
+                                label: 'Photo\nGallery',
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const PhotoGalleryHome(),
+                                  ),
+                                ),
+                              ),
+                              _buildQuickAccessItem(
+                                icon: Icons.policy,
+                                label: 'Government\nSchemes',
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const GovernmentSchemes(),
+                                  ),
+                                ),
+                              ),
+                              _buildQuickAccessItem(
+                                icon: Icons.contact_phone,
+                                label: 'Important\nContacts',
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ImportantContacts(),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildQuickAccessItem(
+                                icon: Icons.emergency,
+                                label: 'Emergency\nServices',
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const EmergencyServices(),
+                                  ),
+                                ),
+                                color: Colors.red,
+                              ),
+                              _buildQuickAccessItem(
+                                icon: Icons.phone_in_talk,
+                                label: 'Helpline\nNumbers',
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ImportantHelplines(),
+                                  ),
+                                ),
+                                color: Colors.indigo,
+                              ),
+                              _buildQuickAccessItem(
+                                icon: Icons.school,
+                                label: 'Education',
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const MiddleSchoolScreen(),
+                                  ),
+                                ),
+                              ),
+                              _buildQuickAccessItem(
+                                icon: Icons.star,
+                                label: 'Talent\nCorner',
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const TalentCorner(),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    _buildQuickAccessItem(
-                      icon: Icons.photo_library,
-                      label: 'Photo\nGallery',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const PhotoGalleryHome(),
-                        ),
-                      ),
-                    ),
-                    _buildQuickAccessItem(
-                      icon: Icons.policy,
-                      label: 'Government\nSchemes',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const GovernmentSchemes(),
-                        ),
-                      ),
-                    ),
-                    _buildQuickAccessItem(
-                      icon: Icons.contact_phone,
-                      label: 'Important\nContacts',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ImportantContacts(),
-                        ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Recent Updates',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildRecentUpdateCard(),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: horizontalPadding),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildQuickAccessItem(
-                      icon: Icons.emergency,
-                      label: 'Emergency\nServices',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const EmergencyServices(),
-                        ),
-                      ),
-                      color: Colors.red,
-                    ),
-                    _buildQuickAccessItem(
-                      icon: Icons.phone_in_talk,
-                      label: 'Helpline\nNumbers',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ImportantHelplines(),
-                        ),
-                      ),
-                      color: Colors.indigo,
-                    ),
-                    _buildQuickAccessItem(
-                      icon: Icons.school,
-                      label: 'Education',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const MiddleSchoolScreen(),
-                        ),
-                      ),
-                    ),
-                    _buildQuickAccessItem(
-                      icon: Icons.star,
-                      label: 'Talent\nCorner',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const TalentCorner(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
-          ),
-          Padding(
-            padding: EdgeInsets.all(horizontalPadding),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Recent Updates',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+      bottomNavigationBar: widget.showBottomBar
+          ? Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 8,
+                  ),
+                  child: BottomNavigationBar(
+                    elevation: 0,
+                    backgroundColor: Colors.transparent,
+                    type: BottomNavigationBarType.fixed,
+                    items: const <BottomNavigationBarItem>[
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.home),
+                        label: 'Home',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.chat),
+                        label: 'Chat',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.event),
+                        label: 'Events',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.video_collection),
+                        label: 'Reels',
+                      ),
+                    ],
+                    currentIndex: _selectedIndex,
+                    selectedItemColor: Theme.of(context).primaryColor,
+                    unselectedItemColor: Colors.grey,
+                    onTap: _onItemTapped,
                   ),
                 ),
-                SizedBox(height: horizontalPadding),
-                _buildRecentUpdateCard(),
-              ],
-            ),
-          ),
-        ],
-      ),
+              ),
+            )
+          : null,
     );
   }
 
