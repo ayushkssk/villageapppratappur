@@ -8,6 +8,7 @@ import '../models/chat_message.dart';
 import '../services/chat_service.dart';
 import '../auth/providers/auth_provider.dart';
 import '../widgets/village_pattern_painter.dart';
+import '../utils/color_generator.dart';
 import 'home_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -332,15 +333,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     );
   }
 
-  Color _getMessageColor(String userType, bool isCurrentUser) {
+  Color _getMessageColor(String userType, bool isCurrentUser, String userId) {
     if (isCurrentUser) {
-      return const Color(0xFF2E7D32); // Dark green for own messages
+      return const Color(0xFF2E7D32); // Keep current user's messages consistent
     }
-    // Earthy colors for different user types
     if (userType == 'offline') {
-      return const Color(0xFF795548); // Brown for offline users
+      return const Color(0xFF795548); // Keep offline users brown
     }
-    return const Color(0xFF33691E); // Forest Green for registered users
+    return ColorGenerator.getColorForUser(userId);
   }
 
   Widget _buildMessage(ChatMessage message, bool isCurrentUser, int index, List<ChatMessage> messages) {
@@ -410,7 +410,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: _getMessageColor(message.userType, isCurrentUser),
+                color: _getMessageColor(message.userType, isCurrentUser, message.senderId),
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(20),
                   topRight: const Radius.circular(20),
