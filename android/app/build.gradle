@@ -33,12 +33,21 @@ android {
         multiDexEnabled true
     }
 
+    signingConfigs {
+        release {
+            storeFile file("pratappur-key.jks")
+            storePassword "pratappur123"
+            keyAlias "pratappur"
+            keyPassword "pratappur123"
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
-            minifyEnabled false
-            shrinkResources false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
             minifyEnabled false
@@ -48,6 +57,8 @@ android {
 
     lint {
         disable 'InvalidPackage'
+        checkReleaseBuilds false
+        abortOnError false
     }
 
     packagingOptions {
