@@ -7,13 +7,17 @@
 -keep class io.flutter.plugins.**  { *; }
 
 # Flutter Sound
--keep class com.dooboolab.** { *; }
 -keep class xyz.canardoux.** { *; }
--keep class com.arthenica.mobileffmpeg.** { *; }
+-keep class com.dooboolab.** { *; }
 
 # Firebase
 -keep class com.google.firebase.** { *; }
 -keep class com.google.android.gms.** { *; }
+
+# Prevent R8 from leaving Data object members always null
+-keepclassmembers,allowobfuscation class * {
+  @com.google.gson.annotations.SerializedName <fields>;
+}
 
 # Keep `Companion` object fields of serializable classes.
 # This avoids serializer lookup through `getDeclaredClasses` as done for named companion objects.
