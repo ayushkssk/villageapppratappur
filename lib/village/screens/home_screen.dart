@@ -29,12 +29,14 @@ import '../services/firestore_service.dart';
 import '../models/news_update.dart';
 import '../models/event.dart';
 import '../models/emergency_alert.dart';
+import '../models/news_notice.dart';
 import 'chat_screen.dart';
 import 'events_screen.dart';
 import 'reels_screen.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import './main_screen.dart';
 import 'government_projects/har_ghar_nal_jal.dart';
+import 'news_notices.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool showBottomBar;
@@ -144,8 +146,30 @@ class _HomeScreenState extends State<HomeScreen> {
     _startUpdateAutoSlide();
     _refreshTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
       _loadData();
+      _loadLatestAlert();  // Refresh emergency alerts periodically
     });
     _loadLatestAlert();
+    _updateNotificationCount();
+
+    // Listen for real-time emergency alert updates
+    FirebaseFirestore.instance
+        .collection('emergency_alerts')
+        .where('isActive', isEqualTo: true)
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.docs.isNotEmpty) {
+        final alertData = snapshot.docs.first.data();
+        setState(() {
+          _latestAlert = EmergencyAlert.fromMap(alertData, snapshot.docs.first.id);
+        });
+      } else {
+        setState(() {
+          _latestAlert = null;
+        });
+      }
+    });
   }
 
   @override
@@ -296,60 +320,209 @@ class _HomeScreenState extends State<HomeScreen> {
           .get();
 
       if (snapshot.docs.isNotEmpty) {
+        final alertData = snapshot.docs.first.data();
         setState(() {
-          _latestAlert = EmergencyAlert.fromMap(
-            snapshot.docs.first.data(),
-            snapshot.docs.first.id,
-          );
+          _latestAlert = EmergencyAlert.fromMap(alertData, snapshot.docs.first.id);
+        });
+      } else {
+        setState(() {
+          _latestAlert = null;
         });
       }
     } catch (e) {
       print('Error loading emergency alert: $e');
+      setState(() {
+        _latestAlert = null;
+      });
     } finally {
       setState(() => _isLoadingAlert = false);
     }
   }
 
   void _showAlertDialog() {
-    if (_latestAlert == null) return;
-    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              Icons.warning,
-              color: _latestAlert!.severity == 'high' 
-                ? Colors.red 
-                : _latestAlert!.severity == 'medium' 
-                  ? Colors.orange 
-                  : Colors.yellow,
-            ),
-            const SizedBox(width: 8),
-            const Text('Emergency Alert'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_latestAlert!.message),
-            const SizedBox(height: 8),
-            Text(
-              'Posted: ${_latestAlert!.timestamp.toDate().toString()}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
           ),
-        ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.red[600],
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Emergency Alerts',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('emergency_alerts')
+                    .where('isActive', isEqualTo: true)
+                    .orderBy('timestamp', descending: true)
+                    .limit(10)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text('Error: ${snapshot.error}'),
+                    );
+                  }
+
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  final alerts = snapshot.data?.docs ?? [];
+                  if (alerts.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(child: Text('No active alerts')),
+                    );
+                  }
+
+                  return ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.6,
+                    ),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemCount: alerts.length,
+                      itemBuilder: (context, index) {
+                        final alert = EmergencyAlert.fromMap(
+                          alerts[index].data() as Map<String, dynamic>,
+                          alerts[index].id,
+                        );
+
+                        return Container(
+                          margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.grey[200]!,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: Colors.red[600],
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      alert.message,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Posted: ${_formatTimestamp(alert.timestamp.toDate())}',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Close',
+                    style: TextStyle(
+                      color: Theme.of(context).primaryColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
+  }
+
+  String _formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inDays > 7) {
+      return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
+  void _updateNotificationCount() async {
+    try {
+      final noticesSnapshot = await FirebaseFirestore.instance
+          .collection('news_notices')
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      if (mounted) {
+        setState(() {
+          _notificationCount = noticesSnapshot.docs.length;
+        });
+      }
+    } catch (e) {
+      print('Error fetching notification count: $e');
+    }
   }
 
   Widget _buildUserProfileCard() {
@@ -576,76 +749,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: LayoutBuilder(
-          builder: (context, constraints) {
-            final screenWidth = MediaQuery.of(context).size.width;
-            final maxWidth = constraints.maxWidth;
-            final isSmallScreen = screenWidth < 360;
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Village App',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (user != null)
-                  Container(
-                    width: maxWidth,
-                    child: Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            user.displayName ?? user.email,
-                            style: TextStyle(
-                              fontSize: isSmallScreen ? 12 : 14,
-                              color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (authProvider.isOfflineMode) ...[
-                          const SizedBox(width: 4),
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: isSmallScreen ? 4 : 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[800],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.offline_bolt,
-                                  size: isSmallScreen ? 12 : 14,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  isSmallScreen ? 'Offline' : 'Offline Mode',
-                                  style: TextStyle(
-                                    fontSize: isSmallScreen ? 10 : 12,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-              ],
-            );
-          },
+        title: Text(
+          'Village App',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
         ),
-        actions: [
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+            tooltip: 'Menu',
+          ),
+        ),
+        actions: <Widget>[
           if (user != null) ...[
             IconButton(
               icon: const Icon(Icons.edit),
@@ -653,31 +771,72 @@ class _HomeScreenState extends State<HomeScreen> {
               tooltip: 'Edit Profile',
             ),
             if (_latestAlert != null)
-              IconButton(
-                icon: Stack(
-                  children: [
-                    const Icon(Icons.notifications),
-                    if (_latestAlert!.severity == 'high')
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 8,
-                            minHeight: 8,
+              Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.warning_amber_rounded),
+                    onPressed: _showAlertDialog,
+                    tooltip: 'Emergency Alert',
+                  ),
+                  if (_latestAlert!.severity == 'high')
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Theme.of(context).primaryColor,
+                            width: 2,
                           ),
                         ),
                       ),
-                  ],
-                ),
-                onPressed: _showAlertDialog,
-                tooltip: 'Emergency Alert',
+                    ),
+                ],
               ),
+            Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.notifications),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const NewsNoticesScreen(),
+                      ),
+                    );
+                  },
+                  tooltip: 'Notifications',
+                ),
+                if (_notificationCount > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 20,
+                        minHeight: 20,
+                      ),
+                      child: Text(
+                        _notificationCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
               onSelected: (value) async {
@@ -694,7 +853,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     try {
                       await authProvider.signOut();
                       if (!mounted) return;
-                      // Clear navigation stack and go to login
                       Navigator.of(context).pushAndRemoveUntil(
                         MaterialPageRoute(
                           builder: (context) => const LoginScreen(),
@@ -738,9 +896,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ],
-        elevation: 2,
         backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
       ),
       drawer: Drawer(
         child: Column(
@@ -1170,7 +1327,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
                     blurRadius: 10,
-                    offset: const Offset(0, -5),
+                    spreadRadius: 2,
                   ),
                 ],
               ),

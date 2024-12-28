@@ -78,16 +78,33 @@ class _NewsNoticesScreenState extends State<NewsNoticesScreen> {
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('notifications')
+            .collection('emergency_alerts')
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
-              child: Text('Error: ${snapshot.error}')
-                  .animate()
-                  .fadeIn()
-                  .shake(),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 50, color: Colors.red[400])
+                      .animate()
+                      .scale()
+                      .then()
+                      .shake(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading alerts',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                  ).animate().fadeIn(delay: 300.ms),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {});  // Retry loading
+                    },
+                    child: const Text('Retry'),
+                  ).animate().fadeIn(delay: 500.ms),
+                ],
+              ),
             );
           }
 
@@ -95,9 +112,9 @@ class _NewsNoticesScreenState extends State<NewsNoticesScreen> {
             return _buildShimmerLoading();
           }
 
-          final notifications = snapshot.data?.docs ?? [];
+          final alerts = snapshot.data?.docs ?? [];
 
-          if (notifications.isEmpty) {
+          if (alerts.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -109,7 +126,7 @@ class _NewsNoticesScreenState extends State<NewsNoticesScreen> {
                       .shake(),
                   const SizedBox(height: 16),
                   Text(
-                    'No notifications yet',
+                    'No alerts yet',
                     style: TextStyle(color: Colors.grey[600], fontSize: 16),
                   ).animate().fadeIn(delay: 300.ms),
                 ],
@@ -118,26 +135,39 @@ class _NewsNoticesScreenState extends State<NewsNoticesScreen> {
           }
 
           return ListView.builder(
-            itemCount: notifications.length,
+            itemCount: alerts.length,
             itemBuilder: (context, index) {
-              final notification = notifications[index].data() as Map<String, dynamic>;
-              final timestamp = (notification['timestamp'] as Timestamp).toDate();
+              final alert = alerts[index].data() as Map<String, dynamic>;
+              final timestamp = (alert['timestamp'] as Timestamp).toDate();
 
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: ListTile(
+                  contentPadding: const EdgeInsets.all(16),
                   leading: CircleAvatar(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    child: const Icon(Icons.notifications, color: Colors.white),
+                    backgroundColor: Colors.red[50],
+                    child: Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.red[600],
+                    ),
                   ),
-                  title: Text(notification['title'] ?? 'No Title'),
+                  title: Text(
+                    alert['message'] ?? 'Emergency Alert',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(notification['message'] ?? 'No Message'),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Text(
-                        _formatTimestamp(timestamp),
+                        'Posted: ${_formatTimestamp(timestamp)}',
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 12,
@@ -235,12 +265,14 @@ class _NewsNoticesScreenState extends State<NewsNoticesScreen> {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
 
-    if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
+    if (difference.inDays > 7) {
+      return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
     } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
+      return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
     } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
+      return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
     } else {
       return 'Just now';
     }
