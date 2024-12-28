@@ -158,6 +158,14 @@ class _HomeScreenState extends State<HomeScreen> {
         .orderBy('timestamp', descending: true)
         .limit(1)
         .snapshots()
+        .handleError((error) {
+          print('Firestore Error: $error');
+          if (error.toString().contains('indexes?create_composite=')) {
+            final indexUrl = error.toString().split('indexes?create_composite=')[1].split(' ')[0];
+            print('Create index at: https://console.firebase.google.com/v1/$indexUrl');
+          }
+          return Stream.error(error);
+        })
         .listen((snapshot) {
       if (snapshot.docs.isNotEmpty) {
         final alertData = snapshot.docs.first.data();
@@ -342,168 +350,340 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showAlertDialog() {
     showDialog(
       context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black54,
       builder: (context) => Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    color: Colors.red[600],
-                    size: 24,
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: TweenAnimationBuilder<double>(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          tween: Tween(begin: 0, end: 1),
+          builder: (context, value, child) => Transform.scale(
+            scale: 0.5 + (0.5 * value),
+            child: Opacity(
+              opacity: value,
+              child: child,
+            ),
+          ),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+              maxWidth: 400,
+            ),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 20, 20),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                   ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Emergency Alerts',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('emergency_alerts')
-                    .where('isActive', isEqualTo: true)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Column(
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          color: Colors.red[400],
-                          size: 48,
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Failed to load alerts',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        child: Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.red[600],
+                          size: 24,
                         ),
-                      ],
-                    );
-                  }
-
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: CircularProgressIndicator(),
                       ),
-                    );
-                  }
-
-                  final alerts = snapshot.data?.docs ?? [];
-
-                  if (alerts.isEmpty) {
-                    return Column(
-                      children: [
-                        Icon(
-                          Icons.notifications_off_outlined,
-                          color: Colors.grey[400],
-                          size: 48,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No active alerts',
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Text(
+                          'Emergency Alerts',
                           style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w500,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ],
-                    );
-                  }
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: Icon(
+                          Icons.close,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        tooltip: 'Close',
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const Divider(height: 1),
 
-                  return ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(context).size.height * 0.4,
-                    ),
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: alerts.length,
-                      itemBuilder: (context, index) {
-                        final alert = alerts[index].data() as Map<String, dynamic>;
-                        final timestamp = (alert['timestamp'] as Timestamp).toDate();
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[50],
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.grey[200]!,
-                            ),
-                          ),
+                // Content
+                Flexible(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('emergency_alerts')
+                        .where('isActive', isEqualTo: true)
+                        .orderBy('timestamp', descending: true)
+                        .snapshots()
+                        .handleError((error) {
+                          print('Firestore Error: $error');
+                          if (error.toString().contains('indexes?create_composite=')) {
+                            final indexUrl = error.toString().split('indexes?create_composite=')[1].split(' ')[0];
+                            print('Create index at: https://console.firebase.google.com/v1/$indexUrl');
+                          }
+                          return Stream.error(error);
+                        }),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Padding(
+                          padding: const EdgeInsets.all(24),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    Icons.warning_amber_rounded,
-                                    color: Colors.red[600],
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      alert['message'] ?? 'Emergency Alert',
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        height: 1.3,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[50],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.error_outline,
+                                  color: Colors.red[400],
+                                  size: 32,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Failed to load alerts',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 8),
-                              Text(
-                                'Posted: ${_formatTimestamp(timestamp)}',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 24),
+                                child: Text(
+                                  snapshot.error.toString().contains('indexes?create_composite=')
+                                      ? 'Please create the required index in Firebase Console'
+                                      : 'Please check your connection and try again',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
+                              ),
+                              const SizedBox(height: 24),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  TextButton.icon(
+                                    onPressed: () => Navigator.pop(context),
+                                    icon: const Icon(Icons.refresh),
+                                    label: const Text('Retry'),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
                         );
-                      },
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    'Close',
-                    style: TextStyle(
-                      color: Theme.of(context).primaryColor,
-                      fontWeight: FontWeight.w600,
-                    ),
+                      }
+
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 48,
+                                  height: 48,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Loading alerts...',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+
+                      final alerts = snapshot.data?.docs ?? [];
+
+                      if (alerts.isEmpty) {
+                        return Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.notifications_off_outlined,
+                                  color: Colors.grey[400],
+                                  size: 32,
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              Text(
+                                'No active alerts',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'You\'ll be notified when there are new alerts',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.8),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return ListView.separated(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shrinkWrap: true,
+                        itemCount: alerts.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final alert = alerts[index].data() as Map<String, dynamic>;
+                          final timestamp = (alert['timestamp'] as Timestamp).toDate();
+                          final isRecent = DateTime.now().difference(timestamp).inHours < 6;
+
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: isRecent ? Colors.red[50] : Theme.of(context).colorScheme.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isRecent ? Colors.red[100]! : Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.03),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      Icons.warning_amber_rounded,
+                                      color: isRecent ? Colors.red[600] : Colors.orange,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        alert['message'] ?? 'Emergency Alert',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          height: 1.4,
+                                          color: Theme.of(context).colorScheme.onSurface,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time,
+                                      size: 14,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      _formatTimestamp(timestamp),
+                                      style: TextStyle(
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    if (isRecent) ...[
+                                      const SizedBox(width: 12),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red[100],
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.fiber_manual_record,
+                                              size: 8,
+                                              color: Colors.red[700],
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'New',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                                color: Colors.red[700],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -909,7 +1089,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   stream: FirebaseFirestore.instance
                       .collection('emergency_alerts')
                       .where('isActive', isEqualTo: true)
-                      .snapshots(),
+                      .snapshots()
+                      .handleError((error) {
+                        print('Firestore Error: $error');
+                        if (error.toString().contains('indexes?create_composite=')) {
+                          final indexUrl = error.toString().split('indexes?create_composite=')[1].split(' ')[0];
+                          print('Create index at: https://console.firebase.google.com/v1/$indexUrl');
+                        }
+                        return Stream.error(error);
+                      }),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                       return const SizedBox.shrink();
