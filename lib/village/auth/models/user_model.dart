@@ -51,6 +51,32 @@ class UserModel {
     };
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'uid': uid,
+      'email': email,
+      'name': name,
+      'displayName': displayName,
+      'photoURL': photoURL,
+      'phoneNumber': phoneNumber,
+      'lastUpdated': lastUpdated?.toIso8601String(),
+    };
+  }
+
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+    return UserModel(
+      uid: json['uid'] as String,
+      email: json['email'] as String,
+      name: json['name'] as String?,
+      displayName: json['displayName'] as String?,
+      photoURL: json['photoURL'] as String?,
+      phoneNumber: json['phoneNumber'] as String?,
+      lastUpdated: json['lastUpdated'] != null 
+          ? DateTime.parse(json['lastUpdated'] as String)
+          : null,
+    );
+  }
+
   UserModel copyWith({
     String? name,
     String? displayName,

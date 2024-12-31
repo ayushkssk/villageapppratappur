@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'firebase_options.dart';
 import 'village/auth/providers/auth_provider.dart' show VillageAuthProvider;
@@ -22,11 +22,14 @@ void main() async {
     appleProvider: AppleProvider.appAttest,
   );
 
+  final authService = await AuthService.create();
+
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (_) => VillageAuthProvider(AuthService()),
+        Provider<AuthService>.value(value: authService),
+        ChangeNotifierProvider<VillageAuthProvider>(
+          create: (context) => VillageAuthProvider(authService),
         ),
       ],
       child: const MyApp(),
