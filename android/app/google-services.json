@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "660862490649-6p0s86ual0aa3lppbnp2sh1djs22i9m7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.villageapp",
+            "certificate_hash": "7d2b6725ef8a0fa75264775f5a088eb784bfbb75"
+          }
+        },
+        {
           "client_id": "660862490649-78496dh20r4181tir9vu4ndms5ihifj1.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -21,6 +29,42 @@
             "certificate_hash": "d540df9c8178de3cfe59027051ebb89e1358f2de"
           }
         },
+        {
+          "client_id": "660862490649-rh11iorvrbjtmh86qvhjm7fso5nb0hha.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5UQxpED8y1a_l37pAuqhZ1qNKasP729M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "660862490649-rh11iorvrbjtmh86qvhjm7fso5nb0hha.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "660862490649-0ps7l7tds43kjahdhdfe2f36qhk2brk0.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.villageapp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:660862490649:android:47191c31a3d0031de3f288",
+        "android_client_info": {
+          "package_name": "com.pratappur.app"
+        }
+      },
+      "oauth_client": [
         {
           "client_id": "660862490649-rh11iorvrbjtmh86qvhjm7fso5nb0hha.apps.googleusercontent.com",
           "client_type": 3

@@ -5,7 +5,12 @@ import 'package:google_sign_in/google_sign_in.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+    signInOption: SignInOption.standard,
+    hostedDomain: '',  // Allow any domain
+    clientId: '', // Optional: Add your client ID here if needed
+  );
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
@@ -47,30 +52,48 @@ class AuthService {
 
   Future<UserCredential> signInWithGoogle() async {
     try {
+      // Sign out first to force account selection
+      await _googleSignIn.signOut();
+      await _auth.signOut();
+
+      // Show account picker
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) throw Exception('Google Sign In was cancelled');
-
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _auth.signInWithCredential(credential);
-
-      if (userCredential.user != null) {
-        await _firestore.collection('users').doc(userCredential.user!.uid).set({
-          'uid': userCredential.user!.uid,
-          'email': userCredential.user!.email,
-          'displayName': userCredential.user!.displayName,
-          'photoURL': userCredential.user!.photoURL,
-          'lastUpdated': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+      
+      if (googleUser == null) {
+        throw Exception('Sign in cancelled by user');
       }
 
-      return userCredential;
+      try {
+        // Get auth details
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+        // Create Firebase credential
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        // Sign in with Firebase
+        final userCredential = await _auth.signInWithCredential(credential);
+
+        // Update Firestore data
+        if (userCredential.user != null) {
+          await _firestore.collection('users').doc(userCredential.user!.uid).set({
+            'uid': userCredential.user!.uid,
+            'email': userCredential.user!.email,
+            'displayName': userCredential.user!.displayName,
+            'photoURL': userCredential.user!.photoURL,
+            'lastSignInTime': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+
+        return userCredential;
+      } catch (e) {
+        print('Firebase Auth Error: $e');
+        throw Exception('Failed to sign in with Google');
+      }
     } catch (e) {
-      print('Error in signInWithGoogle: $e');
+      print('Google Sign In Error: $e');
       rethrow;
     }
   }

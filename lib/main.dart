@@ -8,6 +8,7 @@ import 'village/auth/providers/auth_provider.dart' show VillageAuthProvider;
 import 'village/auth/services/auth_service.dart';
 import 'village/auth/screens/login_screen.dart';
 import 'village/screens/home_screen.dart';
+import 'package:villageapp/village/theme/theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,58 +42,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Village App',
-      theme: ThemeData(
-        primarySwatch: Colors.indigo,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.indigo,
-          brightness: Brightness.light,
-        ),
-        appBarTheme: const AppBarTheme(
-          centerTitle: false,
-          elevation: 1,
-          toolbarHeight: 70,
-        ),
-        cardTheme: CardTheme(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          filled: true,
-          fillColor: Colors.grey.shade50,
-        ),
-      ),
+      debugShowCheckedModeBanner: false,
+      theme: VillageTheme.lightTheme,
       home: Consumer<VillageAuthProvider>(
         builder: (context, authProvider, _) {
-          return StreamBuilder<User?>(
-            stream: authProvider.authStateStream,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-              
-              if (authProvider.isAuthenticated) {
-                return const HomeScreen();
-              }
-              return const LoginScreen();
-            },
-          );
+          return const HomeScreen();
         },
       ),
       routes: {

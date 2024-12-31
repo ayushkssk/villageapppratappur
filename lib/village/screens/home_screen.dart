@@ -10,7 +10,6 @@ import 'package:flutter_swiper_view/flutter_swiper_view.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:villageapp/village/auth/providers/auth_provider.dart' show VillageAuthProvider;
 import 'package:villageapp/village/auth/screens/login_screen.dart';
 import './admin/admin_panel.dart';
 import './about_village.dart';
@@ -37,6 +36,7 @@ import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import './main_screen.dart';
 import 'government_projects/har_ghar_nal_jal.dart';
 import 'news_notices.dart';
+import '../widgets/login_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool showBottomBar;
@@ -97,45 +97,41 @@ class _HomeScreenState extends State<HomeScreen> {
   EmergencyAlert? _latestAlert;
   bool _isLoadingAlert = false;
 
-  void _onItemTapped(int index) {
-    if (_selectedIndex != index) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => _screens[index]),
-      );
-    }
-  }
-
-  void _onItemTappedOld(int index) {
-    if (!widget.showBottomBar) return;
-    
-    setState(() {
-      _selectedIndex = index;
-    });
-
+  void _handleBottomNavigation(int index) {
     switch (index) {
       case 0:
         // Already on home
         break;
       case 1:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ChatScreen()),
-        );
+        // Chat - Show coming soon
+        _handleChatTap();
         break;
       case 2:
+        // Events
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const EventsScreen()),
         );
         break;
       case 3:
+        // Reels
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const ReelsScreen()),
         );
         break;
     }
+  }
+
+  void _showLoginDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => const LoginDialog(),
+    );
+  }
+
+  void _handleChatTap() {
+    _showLoginDialog();
   }
 
   @override
@@ -725,796 +721,194 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showProfileDialog() {
-    final authProvider = Provider.of<VillageAuthProvider>(context, listen: false);
-    final user = authProvider.user;
-    if (user == null) return;
-
-    final now = DateTime.now();
-    final accountAge = now.difference(user.lastUpdated ?? now);
-    final accountAgeText = accountAge.inDays > 365
-        ? '${(accountAge.inDays / 365).floor()} years'
-        : accountAge.inDays > 30
-            ? '${(accountAge.inDays / 30).floor()} months'
-            : '${accountAge.inDays} days';
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Close button
-                  Align(
-                    alignment: Alignment.topRight,
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 16),
-                      child: IconButton(
-                        icon: const Icon(Icons.close, size: 24),
-                        onPressed: () => Navigator.pop(context),
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ),
-                  // Profile Avatar
-                  CircleAvatar(
-                    radius: 56,
-                    backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-                    backgroundImage: user.photoURL != null ? NetworkImage(user.photoURL!) : null,
-                    child: user.photoURL == null
-                        ? Text(
-                            (user.displayName ?? user.email)[0].toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 40,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).primaryColor,
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  // User Name
-                  Text(
-                    user.displayName ?? 'Set your name',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  // User Email
-                  Text(
-                    user.email,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Account Info
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 24),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[200]!),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Member for $accountAgeText',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (user.lastUpdated != null) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.update, size: 16, color: Colors.grey[600]),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Last updated: ${user.lastUpdated?.toString().split(' ')[0] ?? 'N/A'}',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Action Buttons
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(
-                      children: [
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _showEditProfileDialog(context, user.displayName);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(context).primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            minimumSize: const Size(double.infinity, 48),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.edit, size: 20),
-                              SizedBox(width: 8),
-                              Text(
-                                'Edit Profile',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextButton(
-                          onPressed: () async {
-                            Navigator.pop(context);
-                            await authProvider.signOut();
-                          },
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            minimumSize: const Size(double.infinity, 48),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.logout, size: 20, color: Theme.of(context).colorScheme.error),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Logout',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Theme.of(context).colorScheme.error,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _showEditProfileDialog(BuildContext context, String? currentName) async {
-    final TextEditingController nameController = TextEditingController(text: currentName);
-    final formKey = GlobalKey<FormState>();
-    
-    return showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setDialogState) {
-            return AlertDialog(
-              title: Row(
-                children: [
-                  Icon(Icons.person_outline, color: Theme.of(context).primaryColor),
-                  const SizedBox(width: 8),
-                  const Text('Edit Profile'),
-                ],
-              ),
-              content: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: nameController,
-                      enabled: !_profileUpdateLoading,
-                      decoration: InputDecoration(
-                        labelText: 'Display Name',
-                        hintText: 'Enter your name',
-                        border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.person),
-                        filled: true,
-                        fillColor: Colors.grey.shade50,
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your name';
-                        }
-                        if (value.trim().length < 2) {
-                          return 'Name must be at least 2 characters';
-                        }
-                        return null;
-                      },
-                      textCapitalization: TextCapitalization.words,
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) {
-                        if (!_profileUpdateLoading) {
-                          _saveProfile(context, formKey, nameController, setDialogState);
-                        }
-                      },
-                    ),
-                    if (_profileUpdateLoading) ...[
-                      const SizedBox(height: 16),
-                      const Center(child: CircularProgressIndicator()),
-                    ],
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: _profileUpdateLoading ? null : () => Navigator.pop(context),
-                  child: Text(
-                    'CANCEL',
-                    style: TextStyle(
-                      color: _profileUpdateLoading ? Colors.grey.shade400 : Colors.grey.shade600,
-                    ),
-                  ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  ),
-                  onPressed: _profileUpdateLoading
-                      ? null
-                      : () => _saveProfile(context, formKey, nameController, setDialogState),
-                  child: Text(_profileUpdateLoading ? 'SAVING...' : 'SAVE'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _saveProfile(
-    BuildContext context,
-    GlobalKey<FormState> formKey,
-    TextEditingController nameController,
-    StateSetter setDialogState,
-  ) async {
-    if (formKey.currentState?.validate() ?? false) {
-      setState(() => _profileUpdateLoading = true);
-      setDialogState(() {});
-      
-      try {
-        final authProvider = Provider.of<VillageAuthProvider>(context, listen: false);
-        await authProvider.updateUserProfile(nameController.text.trim());
-        
-        if (mounted) {
-          setState(() => _profileUpdateLoading = false);
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                'Profile updated successfully',
-                style: TextStyle(color: Colors.white),
-              ),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.all(16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          );
-        }
-      } catch (e) {
-        setState(() => _profileUpdateLoading = false);
-        setDialogState(() {});
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to update profile: ${e.toString()}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    }
+    _showLoginDialog();
   }
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<VillageAuthProvider>(context);
-    final user = authProvider.user;
-
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
           children: [
-            const Text(
-              'My Pratappur',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const CircleAvatar(
+                    radius: 30,
+                    backgroundImage: AssetImage('assets/images/village_logo.png'),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Village App',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                    ),
+                  ),
+                  Text(
+                    'Connect with your community',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             ),
-            if (user?.displayName != null)
-              Text(
-                user!.displayName!,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.8),
-                  fontWeight: FontWeight.w500,
-                ),
+            ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text('Home'),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.info),
+              title: const Text('About Village'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AboutVillage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Photo Gallery'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PhotoGalleryHome()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.policy),
+              title: const Text('Government Schemes'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const GovernmentSchemes()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.contact_phone),
+              title: const Text('Important Contacts'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ImportantContacts()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.emergency, color: Colors.red),
+              title: const Text('Emergency Services'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const EmergencyServices()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.school),
+              title: const Text('Education'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MiddleSchoolScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.star),
+              title: const Text('Talent Corner'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TalentCorner()),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(FontAwesomeIcons.code, size: 20),
+              title: const Text('Developer'),
+              subtitle: const Text('Ayush Singh (IT4B.in)'),
+              trailing: IconButton(
+                icon: const Icon(FontAwesomeIcons.instagram),
+                onPressed: () async {
+                  final Uri url = Uri.parse('https://instagram.com/ayushkssk');
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  }
+                },
               ),
+            ),
           ],
         ),
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: Icon(Icons.menu, color: Theme.of(context).colorScheme.onPrimary),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-            tooltip: 'Menu',
+      ),
+      appBar: AppBar(
+        title: const Text(
+          'My Pratappur',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
           ),
         ),
-        backgroundColor: Theme.of(context).primaryColor,
-        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
-        actions: <Widget>[
-          if (user != null) ...[
-            Stack(
+        actions: [
+          IconButton(
+            icon: Stack(
               children: [
-                IconButton(
-                  icon: Icon(Icons.notifications_outlined, color: Theme.of(context).colorScheme.onPrimary),
-                  onPressed: _showAlertDialog,
-                  tooltip: 'Emergency Alerts',
-                ),
-                StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('emergency_alerts')
-                      .where('isActive', isEqualTo: true)
-                      .snapshots()
-                      .handleError((error) {
-                        print('Firestore Error: $error');
-                        if (error.toString().contains('indexes?create_composite=')) {
-                          final indexUrl = error.toString().split('indexes?create_composite=')[1].split(' ')[0];
-                          print('Create index at: https://console.firebase.google.com/v1/$indexUrl');
-                        }
-                        return Stream.error(error);
-                      }),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-                    
-                    final activeAlerts = snapshot.data!.docs.length;
-                    return Positioned(
-                      right: 6,
-                      top: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red[600],
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Theme.of(context).primaryColor,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '$activeAlerts',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
+                const Icon(Icons.notifications_outlined),
+                if (_notificationCount > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                    );
-                  },
-                ),
+                      constraints: const BoxConstraints(
+                        minWidth: 12,
+                        minHeight: 12,
+                      ),
+                      child: Text(
+                        '$_notificationCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
               ],
             ),
-            PopupMenuButton<String>(
-              icon: Icon(Icons.more_vert, color: Theme.of(context).colorScheme.onPrimary),
-              onSelected: (value) async {
-                switch (value) {
-                  case 'admin_panel':
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AdminPanel(),
-                      ),
-                    );
-                    break;
-                  case 'logout':
-                    try {
-                      await authProvider.signOut();
-                      if (!mounted) return;
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(
-                          builder: (context) => const LoginScreen(),
-                        ),
-                        (route) => false,
-                      );
-                    } catch (e) {
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error signing out: ${e.toString()}'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                    break;
-                }
-              },
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(
-                  value: 'admin_panel',
-                  child: Row(
-                    children: [
-                      Icon(Icons.admin_panel_settings, size: 20),
-                      SizedBox(width: 8),
-                      Text('Admin Panel'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem<String>(
-                  value: 'logout',
-                  child: Row(
-                    children: [
-                      Icon(Icons.logout, size: 20),
-                      SizedBox(width: 8),
-                      Text('Logout'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: InkWell(
-                onTap: _showProfileDialog,
-                borderRadius: BorderRadius.circular(24),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Theme.of(context).colorScheme.onPrimary.withOpacity(0.2),
-                    backgroundImage: user.photoURL != null ? NetworkImage(user.photoURL!) : null,
-                    child: user.photoURL == null
-                        ? Text(
-                            (user.displayName ?? 'U')[0].toUpperCase(),
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          )
-                        : null,
-                  ),
-                ),
-              ),
-            ),
-          ],
+            onPressed: _showAlertDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            onPressed: _showLoginDialog,
+          ),
         ],
-      ),
-      drawer: Drawer(
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              height: 250,
-              color: Colors.blue,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: ClipOval(
-                      child: Image.asset(
-                        'assets/images/village_logo.png',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Text(
-                      'Pratappur',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Container(
-                color: Colors.grey[50],
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.info_outline, size: 28),
-                      title: const Text(
-                        'About Village',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AboutVillage(),
-                          ),
-                        );
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.photo_library_outlined, size: 28),
-                      title: const Text(
-                        'Photo Gallery',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const PhotoGalleryHome(),
-                          ),
-                        );
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.emergency_outlined, size: 28),
-                      title: const Text(
-                        'Emergency Services',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const EmergencyServices(),
-                          ),
-                        );
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.contact_phone_outlined, size: 28),
-                      title: const Text(
-                        'Important Contacts',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const ImportantContacts(),
-                          ),
-                        );
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.policy_outlined, size: 28),
-                      title: const Text(
-                        'Government Schemes',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const GovernmentSchemes(),
-                          ),
-                        );
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.star_outline, size: 28),
-                      title: const Text(
-                        'Talent Corner',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const TalentCorner(),
-                          ),
-                        );
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.school_outlined, size: 28),
-                      title: const Text(
-                        'Education',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const MiddleSchoolScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(height: 16),
-                  ],
-                ),
-              ),
-            ),
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Theme.of(context).primaryColor.withOpacity(0.7),
-                    Theme.of(context).primaryColor.withOpacity(0.9),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                    color: Theme.of(context).primaryColor.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: () async {
-                    await Future.delayed(const Duration(milliseconds: 200));
-                    // Try to open in Instagram app first
-                    final Uri instagramUrl = Uri.parse('instagram://user?username=ayushkssk');
-                    final Uri webUrl = Uri.parse('https://www.instagram.com/ayushkssk');
-                    
-                    try {
-                      final bool canOpenApp = await canLaunchUrl(instagramUrl);
-                      if (canOpenApp) {
-                        await launchUrl(instagramUrl, mode: LaunchMode.externalApplication);
-                      } else {
-                        await launchUrl(webUrl, mode: LaunchMode.externalApplication);
-                      }
-                    } catch (e) {
-                      await launchUrl(webUrl, mode: LaunchMode.externalApplication);
-                    }
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.verified,
-                                color: Colors.white,
-                                size: 12,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                'DEVELOPER',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              'Crafted with ❤️ by ',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const Text(
-                              'Ayush Singh ',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text(
-                                'IT4B.in',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-          ],
-        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -1657,55 +1051,35 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-      bottomNavigationBar: widget.showBottomBar
-          ? Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 8,
-                  ),
-                  child: BottomNavigationBar(
-                    elevation: 0,
-                    backgroundColor: Colors.transparent,
-                    type: BottomNavigationBarType.fixed,
-                    items: const <BottomNavigationBarItem>[
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.home),
-                        label: 'Home',
-                      ),
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.chat),
-                        label: 'Chat',
-                      ),
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.event),
-                        label: 'Events',
-                      ),
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.video_collection),
-                        label: 'Reels',
-                      ),
-                    ],
-                    currentIndex: _selectedIndex,
-                    selectedItemColor: Theme.of(context).primaryColor,
-                    unselectedItemColor: Colors.grey,
-                    onTap: _onItemTapped,
-                  ),
-                ),
-              ),
-            )
-          : null,
+      bottomNavigationBar: widget.showBottomBar ? BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _handleBottomNavigation,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Theme.of(context).primaryColor,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble_outline),
+            activeIcon: Icon(Icons.chat_bubble),
+            label: 'Chat',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.event_outlined),
+            activeIcon: Icon(Icons.event),
+            label: 'Events',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.play_circle_outline),
+            activeIcon: Icon(Icons.play_circle),
+            label: 'Reels',
+          ),
+        ],
+      ) : null,
     );
   }
 

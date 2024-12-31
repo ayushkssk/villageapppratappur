@@ -49,16 +49,35 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
+    if (_isLoading) return; // Prevent multiple attempts
+    
     setState(() => _isLoading = true);
     try {
       await context.read<VillageAuthProvider>().signInWithGoogle();
-      // Don't navigate here - let the StreamBuilder in main.dart handle it
     } catch (e) {
       if (!mounted) return;
+      
+      String errorMessage;
+      if (e.toString().contains('network')) {
+        errorMessage = 'Please check your internet connection';
+      } else if (e.toString().contains('cancelled')) {
+        errorMessage = 'Sign in was cancelled';
+      } else if (e.toString().contains('credential')) {
+        errorMessage = 'Failed to sign in with Google. Please try again';
+      } else {
+        errorMessage = 'An error occurred. Please try again';
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Google login failed: ${e.toString()}'),
+          content: Text(errorMessage),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: 'Retry',
+            textColor: Colors.white,
+            onPressed: _signInWithGoogle,
+          ),
         ),
       );
     } finally {

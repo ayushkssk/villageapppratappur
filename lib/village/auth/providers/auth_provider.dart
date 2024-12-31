@@ -83,12 +83,19 @@ class VillageAuthProvider with ChangeNotifier {
       _setLoading(true);
       final userCredential = await _authService.signInWithGoogle();
       if (userCredential.user != null) {
-        _user = UserModel.fromFirebaseUser(
-          userCredential.user!.uid,
-          userCredential.user!.email ?? '',
+        _user = UserModel(
+          uid: userCredential.user!.uid,
+          email: userCredential.user!.email ?? '',
+          displayName: userCredential.user!.displayName,
+          photoURL: userCredential.user!.photoURL,
+          phoneNumber: userCredential.user!.phoneNumber,
+          lastUpdated: DateTime.now(),
         );
         notifyListeners();
       }
+    } catch (e) {
+      print('Error in signInWithGoogle: $e');
+      rethrow;
     } finally {
       _setLoading(false);
     }
