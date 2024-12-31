@@ -37,6 +37,8 @@ import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import './main_screen.dart';
 import 'government_projects/har_ghar_nal_jal.dart';
 import 'news_notices.dart';
+import './job_portal_screen.dart';
+import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool showBottomBar;
@@ -344,6 +346,23 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     } finally {
       setState(() => _isLoadingAlert = false);
+    }
+  }
+
+  void _updateNotificationCount() async {
+    try {
+      final noticesSnapshot = await FirebaseFirestore.instance
+          .collection('news_notices')
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      if (mounted) {
+        setState(() {
+          _notificationCount = noticesSnapshot.docs.length;
+        });
+      }
+    } catch (e) {
+      print('Error fetching notification count: $e');
     }
   }
 
@@ -664,7 +683,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                               'New',
                                               style: TextStyle(
                                                 fontSize: 11,
-                                                fontWeight: FontWeight.w500,
+                                                fontWeight: FontWeight.bold,
                                                 color: Colors.red[700],
                                               ),
                                             ),
@@ -707,21 +726,57 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _updateNotificationCount() async {
-    try {
-      final noticesSnapshot = await FirebaseFirestore.instance
-          .collection('news_notices')
-          .orderBy('timestamp', descending: true)
-          .get();
-
-      if (mounted) {
-        setState(() {
-          _notificationCount = noticesSnapshot.docs.length;
-        });
-      }
-    } catch (e) {
-      print('Error fetching notification count: $e');
+  Future<void> _handleLogout() async {
+    final authProvider = Provider.of<VillageAuthProvider>(context, listen: false);
+    await authProvider.signOut();
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, '/login');
     }
+  }
+
+  void _showAdminMenu() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.admin_panel_settings),
+            title: const Text('Admin Panel'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdminPanel(),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.work),
+            title: const Text('Post a Job'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const JobPortalScreen(initialTab: 1),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.logout),
+            title: const Text('Logout'),
+            onTap: () {
+              Navigator.pop(context);
+              _handleLogout();
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   void _showProfileDialog() {
@@ -1198,7 +1253,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: InkWell(
-                onTap: _showProfileDialog,
+                onTap: _showAdminMenu,
                 borderRadius: BorderRadius.circular(24),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -1253,9 +1308,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(30),
                     ),
-                    child: Text(
+                    child: const Text(
                       'Pratappur',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -1372,6 +1427,21 @@ class _HomeScreenState extends State<HomeScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) => const MiddleSchoolScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.work, size: 28),
+                      title: const Text(
+                        'Job Portal',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const JobPortalScreen(),
                           ),
                         );
                       },
@@ -1512,6 +1582,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     if (_imageUrls.isNotEmpty) _buildImageSlider(),
                     _buildNotificationSlider(context),
+                    _buildJobsSlider(),
                     Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -2036,7 +2107,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     top: 0,
                     right: 0,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: const BoxDecoration(
                         color: Colors.red,
                         borderRadius: BorderRadius.only(
@@ -2067,5 +2141,286 @@ class _HomeScreenState extends State<HomeScreen> {
         viewportFraction: 0.93,
       ),
     );
+  }
+
+  Widget _buildJobsSlider() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('jobs')
+          .orderBy('postedAt', descending: true)
+          .limit(5)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Container(
+          height: 70,
+          margin: const EdgeInsets.only(bottom: 16),
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: snapshot.data!.docs.length,
+            itemBuilder: (context, index) {
+              final job = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+              final postedAt = (job['postedAt'] as Timestamp).toDate();
+              final formattedDate = _getTimeAgo(postedAt);
+
+              return Container(
+                width: MediaQuery.of(context).size.width * 0.75,
+                margin: EdgeInsets.only(
+                  left: index == 0 ? 16 : 8,
+                  right: index == snapshot.data!.docs.length - 1 ? 16 : 8,
+                ),
+                child: InkWell(
+                  onTap: () => _showJobDetails(job),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: Theme.of(context).primaryColor.withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Icon(
+                            Icons.work_outline,
+                            color: Theme.of(context).primaryColor,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                job['title'],
+                                style: TextStyle(
+                                  color: Theme.of(context).primaryColor,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.location_on_outlined,
+                                    size: 12,
+                                    color: Theme.of(context).hintColor,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    job['location'],
+                                    style: TextStyle(
+                                      color: Theme.of(context).hintColor,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  Text(
+                                    ' • ',
+                                    style: TextStyle(
+                                      color: Theme.of(context).hintColor,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.access_time,
+                                    size: 12,
+                                    color: Theme.of(context).hintColor,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    formattedDate,
+                                    style: TextStyle(
+                                      color: Theme.of(context).hintColor,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'New',
+                            style: TextStyle(
+                              color: Theme.of(context).primaryColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  void _showJobDetails(Map<String, dynamic> job) {
+    final postedAt = (job['postedAt'] as Timestamp).toDate();
+    final formattedDate = DateFormat('MMM d, yyyy').format(postedAt);
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.work_outline,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          job['title'],
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          job['company'],
+                          style: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildDetailRow(Icons.location_on_outlined, job['location']),
+              const SizedBox(height: 8),
+              _buildDetailRow(Icons.category_outlined, job['category']),
+              const SizedBox(height: 8),
+              _buildDetailRow(Icons.currency_rupee, job['salary']),
+              const SizedBox(height: 8),
+              _buildDetailRow(Icons.access_time, 'Posted: $formattedDate'),
+              const SizedBox(height: 16),
+              Text(
+                job['description'],
+                style: const TextStyle(height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const JobPortalScreen(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('View All Jobs'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: Colors.grey[600],
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: Colors.grey[600],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _getTimeAgo(DateTime dateTime) {
+  final now = DateTime.now();
+  final difference = now.difference(dateTime);
+
+  if (difference.inDays > 7) {
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+  } else if (difference.inDays > 0) {
+    return '${difference.inDays}d ago';
+  } else if (difference.inHours > 0) {
+    return '${difference.inHours}h ago';
+  } else if (difference.inMinutes > 0) {
+    return '${difference.inMinutes}m ago';
+  } else {
+    return 'Just now';
   }
 }

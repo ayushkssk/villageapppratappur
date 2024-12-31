@@ -3,6 +3,7 @@ plugins {
     id "kotlin-android"
     id "com.google.gms.google-services"
     id "dev.flutter.flutter-gradle-plugin"
+    id "com.google.firebase.crashlytics"
 }
 
 android {
@@ -52,11 +53,13 @@ android {
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             ndk {
-                abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+                debugSymbolLevel 'SYMBOL_TABLE'
             }
         }
         debug {
             signingConfig signingConfigs.debug
+            applicationIdSuffix ".debug"
+            debuggable true
             minifyEnabled false
             shrinkResources false
         }
@@ -66,6 +69,18 @@ android {
         disable 'InvalidPackage'
         checkReleaseBuilds false
         abortOnError false
+    }
+
+    bundle {
+        language {
+            enableSplit = false
+        }
+        density {
+            enableSplit = true
+        }
+        abi {
+            enableSplit = true
+        }
     }
 
     packagingOptions {
@@ -87,11 +102,14 @@ android {
 }
 
 dependencies {
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    implementation 'androidx.multidex:multidex:2.0.1'
     implementation platform('com.google.firebase:firebase-bom:32.7.0')
-    implementation 'com.google.firebase:firebase-analytics'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    implementation 'androidx.window:window:1.2.0'
+    implementation 'androidx.window:window-java:1.2.0'
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+    implementation 'com.google.firebase:firebase-analytics-ktx'
+    implementation 'com.google.firebase:firebase-crashlytics-ktx'
+    implementation 'androidx.multidex:multidex:2.0.1'
     implementation 'com.google.android.play:core:1.10.3'
     implementation 'com.google.android.material:material:1.11.0'
     

@@ -74,26 +74,53 @@ class MyApp extends StatelessWidget {
           fillColor: Colors.grey.shade50,
         ),
       ),
-      home: Consumer<VillageAuthProvider>(
-        builder: (context, authProvider, _) {
-          return StreamBuilder<User?>(
-            stream: authProvider.authStateStream,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(
-                    child: CircularProgressIndicator(),
+      home: WillPopScope(
+        onWillPop: () async {
+          final shouldPop = await showDialog<bool>(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                title: const Text('Exit App?'),
+                content: const Text('Do you want to exit the app?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('No'),
                   ),
-                );
-              }
-              
-              if (authProvider.isAuthenticated) {
-                return const HomeScreen();
-              }
-              return const LoginScreen();
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red,
+                    ),
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Yes'),
+                  ),
+                ],
+              );
             },
           );
+          return shouldPop ?? false;
         },
+        child: Consumer<VillageAuthProvider>(
+          builder: (context, authProvider, _) {
+            return StreamBuilder<User?>(
+              stream: authProvider.authStateStream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Scaffold(
+                    body: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+                
+                if (authProvider.isAuthenticated) {
+                  return const HomeScreen();
+                }
+                return const LoginScreen();
+              },
+            );
+          },
+        ),
       ),
       routes: {
         '/login': (context) => const LoginScreen(),
