@@ -1,14 +1,14 @@
 plugins {
-    id "com.android.application"
-    id "kotlin-android"
-    id "com.google.gms.google-services"
-    id "dev.flutter.flutter-gradle-plugin"
-    id "com.google.firebase.crashlytics"
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'com.google.gms.google-services'
+    id 'dev.flutter.flutter-gradle-plugin'
+    id 'com.google.firebase.crashlytics'
 }
 
 android {
     namespace "com.example.villageapp"
-    compileSdkVersion 34
+    compileSdkVersion flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -44,9 +44,19 @@ android {
             keyAlias "pratappur"
             keyPassword "pratappur123"
         }
+        debug {
+            // Add signing configuration for debug
+        }
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix ''
+            signingConfig signingConfigs.debug
+            debuggable true
+            minifyEnabled false
+            shrinkResources false
+        }
         release {
             signingConfig signingConfigs.release
             minifyEnabled true
@@ -55,13 +65,6 @@ android {
             ndk {
                 debugSymbolLevel 'SYMBOL_TABLE'
             }
-        }
-        debug {
-            signingConfig signingConfigs.debug
-            applicationIdSuffix ".debug"
-            debuggable true
-            minifyEnabled false
-            shrinkResources false
         }
     }
 
@@ -102,8 +105,8 @@ android {
 }
 
 dependencies {
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.22'
     implementation platform('com.google.firebase:firebase-bom:32.7.0')
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation 'androidx.window:window:1.2.0'
     implementation 'androidx.window:window-java:1.2.0'
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
